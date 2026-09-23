@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="./popup.css" />
+</head>
+<body>
+  <div class="view view-main">
+    <header class="pop-head">
+      <svg class="logo" viewBox="0 0 1024 1024" aria-hidden="true">
+        <rect x="48" y="48" width="928" height="928" rx="210" fill="#20B889"/>
+        <path d="M385 285h-55c-42 0-62 21-62 63v105c0 38-16 57-50 57 34 0 50 19 50 57v105c0 42 20 63 62 63h55" fill="none" stroke="#fff" stroke-width="48" stroke-linecap="round"/>
+        <path d="M639 285h55c42 0 62 21 62 63v105c0 38 16 57 50 57-34 0-50 19-50 57v105c0 42-20 63-62 63h-55" fill="none" stroke="#fff" stroke-width="48" stroke-linecap="round"/>
+        <path d="M465 512h94" stroke="#fff" stroke-width="44" stroke-linecap="round"/>
+      </svg>
+      <div class="pop-head-text">
+        <div class="pop-title">Schemo</div>
+        <div class="pop-status">
+          <span class="dot" id="status-dot"></span>
+          <span id="status-text"></span>
+          <span class="mono pop-port" id="status-port"></span>
+        </div>
+      </div>
+      <button class="icon-btn" id="open-settings" data-i18n-title="settings" data-i18n-aria-label="settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="3.2" /><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" /></svg>
+      </button>
+    </header>
+
+    <div class="pop-body">
+      <div class="card warn" id="warn-card" hidden>
+        <div class="warn-text" id="warn-text"></div>
+        <button class="btn-primary" id="warn-launch" data-i18n="launchApp"></button>
+      </div>
+
+      <div class="card warn" id="access-card" hidden>
+        <div class="warn-text" data-i18n="accessMissing"></div>
+        <button class="btn-primary" id="access-grant" data-i18n="grantAccess"></button>
+      </div>
+
+      <div class="card current" id="current-card">
+        <div class="current-top">
+          <div class="current-text">
+            <div class="current-title" id="current-title"></div>
+            <div class="mono current-host" id="current-host"></div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="enabled" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="current-foot" id="current-foot">
+          <span class="current-count" id="current-count"></span>
+          <span class="current-ago" id="current-ago"></span>
+          <span class="current-arrow" id="current-arrow">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6" /></svg>
+          </span>
+        </div>
+      </div>
+
+      <div class="action-error" id="error-line" hidden>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8v5" /><path d="M12 16.5v.01" /><circle cx="12" cy="12" r="9" /></svg>
+        <span id="error-text"></span>
+      </div>
+
+      <div class="buffered" id="buffered-line" hidden>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8v5" /><path d="M12 16.5v.01" /><circle cx="12" cy="12" r="9" /></svg>
+        <span id="buffered-text"></span>
+      </div>
+
+      <section class="more" id="more-section" hidden>
+        <div class="section-label" data-i18n="moreCapturing"></div>
+        <div id="more-list"></div>
+      </section>
+    </div>
+
+    <button class="open-app" id="open-app" data-i18n="openApp"></button>
+  </div>
+
+  <div class="view view-settings">
+    <header class="settings-head">
+      <button class="icon-btn" id="close-settings" data-i18n-title="back" data-i18n-aria-label="back">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6" /></svg>
+      </button>
+      <div class="settings-title" data-i18n="settings"></div>
+    </header>
+
+    <div class="settings-body">
+      <div class="setting">
+        <div class="setting-text">
+          <div class="setting-name" data-i18n="settingPort"></div>
+          <div class="setting-hint" data-i18n="settingPortHint"></div>
+        </div>
+        <input type="number" id="port" min="1" max="65535" spellcheck="false" />
+      </div>
+
+      <div class="setting">
+        <div class="setting-text">
+          <div class="setting-name" data-i18n="settingRemember"></div>
+          <div class="setting-hint" data-i18n="settingRememberHint"></div>
+        </div>
+        <label class="switch switch-sm">
+          <input type="checkbox" id="set-rememberTabs" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting">
+        <div class="setting-text">
+          <div class="setting-name" data-i18n="settingFilters"></div>
+          <div class="setting-hint" id="filters-hint" data-i18n="settingFiltersHint"></div>
+        </div>
+      </div>
+
+      <div class="filters" id="filters"></div>
+
+      <div class="settings-foot mono" id="settings-version"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./popup.ts"></script>
+</body>
+</html>

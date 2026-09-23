@@ -1,0 +1,170 @@
+{
+  "locale": {
+    "message": "ru"
+  },
+  "extName": {
+    "message": "Schemo Bridge"
+  },
+  "extDescription": {
+    "message": "Перехватывает сетевые запросы выбранной вкладки браузера и передаёт их в Schemo для просмотра и анализа."
+  },
+  "requests_one": {
+    "message": "$1 запрос"
+  },
+  "requests_few": {
+    "message": "$1 запроса"
+  },
+  "requests_many": {
+    "message": "$1 запросов"
+  },
+  "requests_other": {
+    "message": "$1 запроса"
+  },
+  "titleDisconnected": {
+    "message": "Перехват: приложение недоступно"
+  },
+  "titleCapturing": {
+    "message": "Перехват: $1 · $2"
+  },
+  "titleTabQuoted": {
+    "message": "«$1»"
+  },
+  "titleTabFallback": {
+    "message": "вкладка"
+  },
+  "errNoActiveTab": {
+    "message": "Нет активной вкладки"
+  },
+  "errBlockedPage": {
+    "message": "Браузер не разрешает перехват на этой странице"
+  },
+  "errPageUnreachable": {
+    "message": "Не удалось подключиться к странице"
+  },
+  "errUnknownCommand": {
+    "message": "Неизвестная команда: $1"
+  },
+  "errCrashed": {
+    "message": "Сбой в расширении: $1"
+  },
+  "errUnknown": {
+    "message": "неизвестная ошибка"
+  },
+  "errNoState": {
+    "message": "Нет состояния"
+  },
+  "errActionFailed": {
+    "message": "Не удалось выполнить действие"
+  },
+  "errNoAnswer": {
+    "message": "Расширение не ответило"
+  },
+  "errNoHostAccess": {
+    "message": "Без доступа к сайтам перехват невозможен"
+  },
+  "statusConnected": {
+    "message": "Подключено"
+  },
+  "statusNotRunning": {
+    "message": "Приложение не запущено"
+  },
+  "warnAppDown": {
+    "message": "Расширение продолжает копить запросы, но показать их некому: приложение на порту $1 не отвечает."
+  },
+  "launchApp": {
+    "message": "Запустить приложение"
+  },
+  "accessMissing": {
+    "message": "У расширения нет доступа к сайтам — без него перехват не включить."
+  },
+  "grantAccess": {
+    "message": "Разрешить доступ"
+  },
+  "noActiveTab": {
+    "message": "Нет активной вкладки"
+  },
+  "tabFallback": {
+    "message": "Вкладка"
+  },
+  "tabNotCaptured": {
+    "message": "Запросы этой вкладки не пишутся. Включите, и они появятся в приложении."
+  },
+  "waitingFirst": {
+    "message": "Ждём первый запрос…"
+  },
+  "lastSeconds": {
+    "message": "последний $1 с назад"
+  },
+  "lastMinutes": {
+    "message": "последний $1 мин назад"
+  },
+  "lastHours": {
+    "message": "последний $1 ч назад"
+  },
+  "buffered": {
+    "message": "$1 в буфере, отдадим после запуска"
+  },
+  "moreCapturing": {
+    "message": "Ещё перехватывается"
+  },
+  "stopTabCapture": {
+    "message": "Остановить перехват этой вкладки"
+  },
+  "openApp": {
+    "message": "Открыть приложение"
+  },
+  "settings": {
+    "message": "Настройки"
+  },
+  "back": {
+    "message": "Назад"
+  },
+  "settingPort": {
+    "message": "Порт приложения"
+  },
+  "settingPortHint": {
+    "message": "По умолчанию 38761"
+  },
+  "settingRemember": {
+    "message": "Помнить вкладки"
+  },
+  "settingRememberHint": {
+    "message": "Включать перехват на тех же адресах после перезапуска"
+  },
+  "settingFilters": {
+    "message": "Фильтры перехвата"
+  },
+  "settingFiltersHint": {
+    "message": "Задаются в приложении"
+  },
+  "filterHosts": {
+    "message": "Хосты"
+  },
+  "filterHostsAll": {
+    "message": "все"
+  },
+  "filterStatic": {
+    "message": "Статические файлы"
+  },
+  "filterAnalytics": {
+    "message": "Аналитика и трекеры"
+  },
+  "filterJson": {
+    "message": "Только JSON"
+  },
+  "filterSkipped": {
+    "message": "пропускаются"
+  },
+  "filterKept": {
+    "message": "сохраняются"
+  },
+  "yes": {
+    "message": "да"
+  },
+  "no": {
+    "message": "нет"
+  },
+  "version": {
+    "message": "Версия $1"
+  }
+}

@@ -1,0 +1,226 @@
+{
+  "locale": {
+    "message": "en",
+    "description": "Language of this catalogue, used to pick plural forms"
+  },
+  "extName": {
+    "message": "Schemo Bridge",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Captures the network requests of the chosen browser tab and hands them to Schemo to inspect and analyse.",
+    "description": "Extension description in the store and the extensions page"
+  },
+  "requests_one": {
+    "message": "$1 request",
+    "description": "Request count; $1 is the number"
+  },
+  "requests_few": {
+    "message": "$1 requests",
+    "description": "Request count; $1 is the number"
+  },
+  "requests_many": {
+    "message": "$1 requests",
+    "description": "Request count; $1 is the number"
+  },
+  "requests_other": {
+    "message": "$1 requests",
+    "description": "Request count; $1 is the number"
+  },
+  "titleDisconnected": {
+    "message": "Capture: the app is unavailable",
+    "description": "Toolbar button tooltip"
+  },
+  "titleCapturing": {
+    "message": "Capture: $1 · $2",
+    "description": "Toolbar button tooltip; $1 is the tab title, $2 the request count"
+  },
+  "titleTabQuoted": {
+    "message": "“$1”",
+    "description": "Tab title in quotes"
+  },
+  "titleTabFallback": {
+    "message": "tab",
+    "description": "Used in the tooltip when the tab has no title"
+  },
+  "errNoActiveTab": {
+    "message": "No active tab",
+    "description": "Error"
+  },
+  "errBlockedPage": {
+    "message": "The browser does not allow capture on this page",
+    "description": "Error"
+  },
+  "errPageUnreachable": {
+    "message": "Could not connect to the page",
+    "description": "Error"
+  },
+  "errUnknownCommand": {
+    "message": "Unknown command: $1",
+    "description": "Error; $1 is the command"
+  },
+  "errCrashed": {
+    "message": "Extension failure: $1",
+    "description": "Error; $1 is the cause"
+  },
+  "errUnknown": {
+    "message": "unknown error",
+    "description": "Error cause when none is known"
+  },
+  "errNoState": {
+    "message": "No state",
+    "description": "Error"
+  },
+  "errActionFailed": {
+    "message": "Could not complete the action",
+    "description": "Error"
+  },
+  "errNoAnswer": {
+    "message": "The extension did not respond",
+    "description": "Error"
+  },
+  "errNoHostAccess": {
+    "message": "Capture is impossible without access to sites",
+    "description": "Error"
+  },
+  "statusConnected": {
+    "message": "Connected",
+    "description": "Popup header status"
+  },
+  "statusNotRunning": {
+    "message": "App is not running",
+    "description": "Popup header status"
+  },
+  "warnAppDown": {
+    "message": "The extension keeps collecting requests, but there is nobody to show them to: the app on port $1 is not responding.",
+    "description": "Warning; $1 is the port"
+  },
+  "launchApp": {
+    "message": "Launch the app",
+    "description": "Button"
+  },
+  "accessMissing": {
+    "message": "The extension has no access to sites — capture cannot be turned on without it.",
+    "description": "Warning"
+  },
+  "grantAccess": {
+    "message": "Allow access",
+    "description": "Button"
+  },
+  "noActiveTab": {
+    "message": "No active tab",
+    "description": "Current tab card"
+  },
+  "tabFallback": {
+    "message": "Tab",
+    "description": "Tab without a title"
+  },
+  "tabNotCaptured": {
+    "message": "This tab’s requests are not recorded. Turn capture on and they will appear in the app.",
+    "description": "Current tab card"
+  },
+  "waitingFirst": {
+    "message": "Waiting for the first request…",
+    "description": "Current tab card"
+  },
+  "lastSeconds": {
+    "message": "last one $1 s ago",
+    "description": "Time of the last request"
+  },
+  "lastMinutes": {
+    "message": "last one $1 min ago",
+    "description": "Time of the last request"
+  },
+  "lastHours": {
+    "message": "last one $1 h ago",
+    "description": "Time of the last request"
+  },
+  "buffered": {
+    "message": "$1 in the buffer, handed over once the app starts",
+    "description": "$1 is the request count"
+  },
+  "moreCapturing": {
+    "message": "Also capturing",
+    "description": "Section title"
+  },
+  "stopTabCapture": {
+    "message": "Stop capturing this tab",
+    "description": "Button tooltip"
+  },
+  "openApp": {
+    "message": "Open the app",
+    "description": "Button"
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Settings title and button"
+  },
+  "back": {
+    "message": "Back",
+    "description": "Button"
+  },
+  "settingPort": {
+    "message": "App port",
+    "description": "Setting"
+  },
+  "settingPortHint": {
+    "message": "Default is 38761",
+    "description": "Setting hint"
+  },
+  "settingRemember": {
+    "message": "Remember tabs",
+    "description": "Setting"
+  },
+  "settingRememberHint": {
+    "message": "Turn capture back on for the same addresses after a restart",
+    "description": "Setting hint"
+  },
+  "settingFilters": {
+    "message": "Capture filters",
+    "description": "Setting"
+  },
+  "settingFiltersHint": {
+    "message": "Set in the app",
+    "description": "Setting hint"
+  },
+  "filterHosts": {
+    "message": "Hosts",
+    "description": "Filter name"
+  },
+  "filterHostsAll": {
+    "message": "all",
+    "description": "Filter value"
+  },
+  "filterStatic": {
+    "message": "Static files",
+    "description": "Filter name"
+  },
+  "filterAnalytics": {
+    "message": "Analytics and trackers",
+    "description": "Filter name"
+  },
+  "filterJson": {
+    "message": "JSON only",
+    "description": "Filter name"
+  },
+  "filterSkipped": {
+    "message": "skipped",
+    "description": "Filter value"
+  },
+  "filterKept": {
+    "message": "kept",
+    "description": "Filter value"
+  },
+  "yes": {
+    "message": "yes",
+    "description": "Filter value"
+  },
+  "no": {
+    "message": "no",
+    "description": "Filter value"
+  },
+  "version": {
+    "message": "Version $1",
+    "description": "$1 is the version"
+  }
+}
