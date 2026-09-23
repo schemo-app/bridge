@@ -1,10 +1,6 @@
-// What the worker knows. In memory for the drawing, and — what must survive a worker restart — in
-// session and local storage.
-
 import { ext } from '../shared/api';
 import {
   DEFAULT_FILTERS,
-  DEFAULT_PORT,
   DEFAULT_SETTINGS,
   type CaptureFilters,
   type Settings,
@@ -18,9 +14,6 @@ export interface TabMeta {
 export const state = {
   captureTabIds: new Set<number>(),
   captureTabMeta: new Map<number, TabMeta>(),
-  // When each captured tab was armed. In memory for the drawing and in session storage for the
-  // restarts: a tab restored without its time is a tab nobody can say anything about, and inventing
-  // one would date the capture to the restart.
   captureTabSince: new Map<number, number>(),
   capturedCounts: new Map<number, number>(),
   capturedLastAt: new Map<number, number>(),
@@ -42,11 +35,10 @@ export function forgetTab(tabId: number): void {
   state.capturedLastAt.delete(tabId);
 }
 
-export async function readState(): Promise<{ captureTabIds: number[]; port: number }> {
+export async function readState(): Promise<{ captureTabIds: number[] }> {
   const [session, local] = await Promise.all([
     ext.storage.session.get(['captureTabIds', 'captureTabSince']),
     ext.storage.local.get({
-      port: DEFAULT_PORT,
       settings: DEFAULT_SETTINGS,
       filters: DEFAULT_FILTERS,
     }),
@@ -66,12 +58,7 @@ export async function readState(): Promise<{ captureTabIds: number[]; port: numb
 
   return {
     captureTabIds: (session.captureTabIds as number[]) ?? [],
-    port: (local.port as number) || DEFAULT_PORT,
   };
-}
-
-export async function readPort(): Promise<number> {
-  return (await readState()).port;
 }
 
 export async function persistCapture(): Promise<void> {

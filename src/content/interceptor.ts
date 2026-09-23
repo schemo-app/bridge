@@ -1,19 +1,12 @@
-// Runs in the page's own (MAIN) world and wraps fetch and XMLHttpRequest. It has no extension API —
-// nothing from ../shared/api may be imported here — and reports by posting to its own window, where
-// the bridge picks it up.
-//
-// Only types are imported. A value shared with another entry makes Parcel ship its module loader,
-// and in this world that loader is a global on the page's own window.
-
+// Runs in the page's MAIN world: no extension APIs here, reports via window.postMessage.
+// Import types only: a shared value makes Parcel add a global module loader to the page.
 import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types';
 
 (() => {
   const MESSAGE_MARKER: HookMessage['__schemo'] = '__SCHEMO_CAPTURE__';
   const MAX_BODY_CHARS = 2 * 1024 * 1024;
 
-  // Injected a second time into a page that already has the hook: the flag is turned back on, and the
-  // hooks that are already there are kept — installing them twice would put two wrappers around fetch
-  // and capture every request twice.
+  // Re-injected into the same page: re-enable instead of wrapping fetch/XHR twice.
   if (window.__schemoHook) {
     window.__schemoEnabled = true;
     return;
@@ -45,8 +38,6 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
       return body;
     }
 
-    // In English like the other placeholders of this file ([binary body], [form data]): the page's
-    // world has no access to the extension's translations.
     return `${body.slice(0, MAX_BODY_CHARS)}\n…[truncated to 2 MB]`;
   }
 
@@ -108,9 +99,6 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
       return '';
     }
 
-    // Capped here rather than at the call sites, because this is where both of them meet: a request
-    // body is copied into a frame, sent over the port and kept in the worker's buffer, and a fifty
-    // megabyte upload would be carried four times over.
     if (typeof body === 'string') {
       return limitBody(body);
     }
@@ -145,9 +133,7 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
 
     try {
       window.postMessage({ __schemo: MESSAGE_MARKER, kind: 'request', ...data }, '*');
-    } catch {
-      // Ignore postMessage failures during navigation.
-    }
+    } catch {}
   }
 
   function getBinaryResponseBody(contentType: string): string {
@@ -182,7 +168,6 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
         return promise;
       }
 
-      // A Request carries its own url, method and headers; a string or a URL carries only the address.
       const request = typeof input === 'string' ? undefined : (input as Partial<Request>);
       const url = typeof input === 'string' ? input : request?.url || String(input);
       const method = (init.method || request?.method || 'GET').toUpperCase();
@@ -191,14 +176,11 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
 
       promise.then(
           async (response) => {
-            // Resolved means the headers are in — see phases().
             const headersPerf = performance.now();
             const responseHeaders = serializeHeaders(response.headers);
             const contentType = response.headers.get('content-type') || '';
 
             if (isBinaryContentType(contentType)) {
-              // The body is deliberately not read here, so its download time is unknown and
-              // the phases are left out rather than reported as zero.
               capture({
                 method,
                 url,
@@ -219,12 +201,8 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
 
             try {
               responseBody = limitBody(await response.clone().text());
-            } catch {
-              // Keep empty response body when it cannot be read.
-            }
+            } catch {}
 
-            // Measured after the body, so the total stays the whole round trip and the two
-            // phases above add up to it — otherwise "Всего" would silently mean "до заголовков".
             capture({
               method,
               url,
@@ -288,7 +266,6 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
       if (state && isCaptureEnabled()) {
         const requestBody = bodyToString(body);
         const startedPerf = performance.now();
-        // readyState 2 is HEADERS_RECEIVED — the same instant fetch()'s promise resolves at.
         let headersPerf = 0;
 
         const captureResponse = () => {
@@ -297,21 +274,15 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
           let responseBody = '';
           let timing: ReturnType<typeof phases> | null = null;
 
-          // `responseText` is only readable when the response type is text: any other kind throws on
-          // the getter, and the throw would escape this handler and lose the capture entirely. So the
-          // type is asked first, which is the only question that can be asked safely.
+          // responseText throws for non-text responseType.
           const textResponse = this.responseType === '' || this.responseType === 'text';
 
           if (isBinaryContentType(contentType)) {
             responseBody = getBinaryResponseBody(contentType);
           } else if (textResponse) {
             responseBody = limitBody(this.responseText);
-            // Only a body that was actually read has a download time to report.
             if (headersPerf) timing = phases(startedPerf, headersPerf, performance.now());
           } else if (this.responseType === 'json' && this.response != null) {
-            // The parsed answer, written back out: it is the same document the server sent — the
-            // browser has already thrown the original spacing away — and a row with no body at all
-            // would say less than the network did.
             responseBody = limitBody(JSON.stringify(this.response));
             if (headersPerf) timing = phases(startedPerf, headersPerf, performance.now());
           }
@@ -325,8 +296,6 @@ import type { HeaderMap, HookMessage, InterceptedRequest } from '../shared/types
             statusText: this.statusText,
             responseHeaders: parseResponseHeaders(this.getAllResponseHeaders?.() || ''),
             responseBody,
-            // The duration is the round trip from the send, which is what the caller waited for; the
-            // wall clock is only good enough for the moment the request left, not for measuring.
             durationMs: Math.round(performance.now() - startedPerf),
             startedAt: state.startedAt,
             ...(timing ?? {}),

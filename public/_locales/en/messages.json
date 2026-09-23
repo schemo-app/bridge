@@ -8,7 +8,7 @@
     "description": "Extension name"
   },
   "extDescription": {
-    "message": "Captures the network requests of the chosen browser tab and hands them to Schemo to inspect and analyse.",
+    "message": "An extension for the Schemo desktop application. It intercepts network requests from selected tabs for viewing and analysis within the program.",
     "description": "Extension description in the store and the extensions page"
   },
   "requests_one": {
@@ -80,7 +80,7 @@
     "description": "Error"
   },
   "errNoHostAccess": {
-    "message": "Capture is impossible without access to sites",
+    "message": "Capture needs access to this site",
     "description": "Error"
   },
   "statusConnected": {
@@ -92,19 +92,11 @@
     "description": "Popup header status"
   },
   "warnAppDown": {
-    "message": "The extension keeps collecting requests, but there is nobody to show them to: the app on port $1 is not responding.",
-    "description": "Warning; $1 is the port"
+    "message": "The Schemo app is not running. Capture resumes as soon as it starts.",
+    "description": "Warning while the app is not running"
   },
   "launchApp": {
     "message": "Launch the app",
-    "description": "Button"
-  },
-  "accessMissing": {
-    "message": "The extension has no access to sites — capture cannot be turned on without it.",
-    "description": "Warning"
-  },
-  "grantAccess": {
-    "message": "Allow access",
     "description": "Button"
   },
   "noActiveTab": {
@@ -135,10 +127,6 @@
     "message": "last one $1 h ago",
     "description": "Time of the last request"
   },
-  "buffered": {
-    "message": "$1 in the buffer, handed over once the app starts",
-    "description": "$1 is the request count"
-  },
   "moreCapturing": {
     "message": "Also capturing",
     "description": "Section title"
@@ -158,14 +146,6 @@
   "back": {
     "message": "Back",
     "description": "Button"
-  },
-  "settingPort": {
-    "message": "App port",
-    "description": "Setting"
-  },
-  "settingPortHint": {
-    "message": "Default is 38761",
-    "description": "Setting hint"
   },
   "settingRemember": {
     "message": "Remember tabs",
@@ -222,5 +202,13 @@
   "version": {
     "message": "Version $1",
     "description": "$1 is the version"
+  },
+  "warnNoHost": {
+    "message": "Schemo is not installed, or has not been started yet. Install the app and run it once — the extension connects by itself.",
+    "description": "Warning when the browser does not know the app's native messaging host"
+  },
+  "statusNotInstalled": {
+    "message": "App not installed",
+    "description": "Popup header status"
   }
 }

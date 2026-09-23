@@ -1,7 +1,7 @@
 import { ext } from '../shared/api';
 import { localizePage, t, tn } from '../shared/i18n';
+import { sitePattern } from '../shared/sites';
 import {
-  DEFAULT_PORT,
   type ActionResult,
   type CaptureFilters,
   type PopupRequest,
@@ -9,36 +9,27 @@ import {
   type TabInfo,
 } from '../shared/types';
 
-// Firefox treats host permissions of a Manifest V3 extension as optional: the user may not have
-// granted them at install, and may take them back at any time. Chrome and Edge grant them at install.
-// Without them nothing can be injected, so the popup asks — and it has to ask from inside the click,
-// which is why whether access is there is known before anybody clicks.
-const ALL_SITES: chrome.permissions.Permissions = { origins: ['<all_urls>'] };
-let hostAccess = true;
+// Must be called inside the click handler before any await, or the browser rejects it.
+async function requestSiteAccess(tabId: number, url: string): Promise<boolean> {
+  const pattern = sitePattern(url);
 
-async function checkHostAccess(): Promise<void> {
-  try {
-    hostAccess = await ext.permissions.contains(ALL_SITES);
-  } catch {
-    hostAccess = true;
+  if (!pattern) {
+    return true;
   }
 
-  $('access-card').hidden = hostAccess;
-}
+  send({ type: 'pendingCapture', tabId, pattern }).catch(() => {});
 
-// Called straight from a click handler, before anything is awaited: a request made later is not a
-// user's request any more, and Firefox refuses it.
-async function requestHostAccess(): Promise<boolean> {
   let granted = false;
 
   try {
-    granted = await ext.permissions.request(ALL_SITES);
+    granted = await ext.permissions.request({ origins: [pattern] });
   } catch {
     granted = false;
   }
 
-  hostAccess = granted;
-  $('access-card').hidden = granted;
+  if (!granted) {
+    send({ type: 'clearPending' }).catch(() => {});
+  }
 
   return granted;
 }
@@ -69,13 +60,23 @@ async function openApp(tabId?: number): Promise<void> {
       window.close();
       return;
     }
-  } catch {
-    // The worker did not answer; the link below still opens the app.
-  }
+  } catch {}
 
   const query = tabId != null ? `?tab=${encodeURIComponent(tabId)}` : '';
+  const url = `schemo://open${query}`;
 
-  window.location.href = `schemo://open${query}`;
+  // Opened via the tab so the browser's app prompt is centered, not attached to the popup.
+  const activeTabId = lastState?.activeTabId;
+
+  if (activeTabId != null) {
+    try {
+      await ext.tabs.update(activeTabId, { url });
+      window.close();
+      return;
+    } catch {}
+  }
+
+  window.location.href = url;
 }
 
 function hostnameOf(url: string): string {
@@ -195,18 +196,15 @@ function buildMoreRow(tab: TabInfo): HTMLElement {
 function renderHeader(state: PopupState): void {
   const dot = $('status-dot');
   const text = $('status-text');
-  const port = $('status-port');
 
   if (state.appRunning) {
     dot.className = 'dot dot-status-ok';
     text.textContent = t('statusConnected');
-    port.textContent = ':' + (state.port || DEFAULT_PORT);
     return;
   }
 
   dot.className = 'dot dot-status-warn';
-  text.textContent = t('statusNotRunning');
-  port.textContent = '';
+  text.textContent = t(state.link === 'no-host' ? 'statusNotInstalled' : 'statusNotRunning');
 }
 
 function renderCurrentTab(state: PopupState): void {
@@ -295,30 +293,11 @@ function renderWarning(state: PopupState): void {
   warn.hidden = state.appRunning;
 
   if (!state.appRunning) {
-    renderAppDown(state.port || DEFAULT_PORT);
+    const missing = state.link === 'no-host';
+
+    $('warn-text').textContent = t(missing ? 'warnNoHost' : 'warnAppDown');
+    $('warn-launch').hidden = missing;
   }
-
-  const line = $('buffered-line');
-  const buffered = state.bufferedCount || 0;
-
-  line.hidden = state.appRunning || buffered === 0;
-
-  if (!line.hidden) {
-    $('buffered-text').textContent = t('buffered', [tn('requests', buffered)]);
-  }
-}
-
-// The port sits inside the sentence and is drawn in the monospace face, so the translated sentence is
-// split around it rather than set as plain text. Where it sits is the translation's business.
-function renderAppDown(port: number): void {
-  const marker = '\u0000';
-  const [before, after = ''] = t('warnAppDown', [marker]).split(marker);
-  const portEl = document.createElement('span');
-
-  portEl.className = 'mono';
-  portEl.textContent = String(port);
-
-  $('warn-text').replaceChildren(before, portEl, after);
 }
 
 function renderActionError(): void {
@@ -365,8 +344,6 @@ function renderSettings(state: PopupState): void {
     return;
   }
 
-  $<HTMLInputElement>('port').value = String(state.port || DEFAULT_PORT);
-
   for (const id of SETTING_INPUTS) {
     const key = id.replace('set-', '') as keyof PopupState['settings'];
 
@@ -376,8 +353,6 @@ function renderSettings(state: PopupState): void {
   renderFilters(state.filters);
 }
 
-// The rules the app filters by, listed as they are: the popup is where somebody looks to find out why
-// a request they expected is not here, and «фильтры в приложении» is not an answer to that.
 function renderFilters(filters: CaptureFilters | undefined): void {
   const box = $('filters');
 
@@ -411,7 +386,11 @@ function renderFilters(filters: CaptureFilters | undefined): void {
   }
 }
 
+let lastState: PopupState | null = null;
+
 function render(state: PopupState): void {
+  lastState = state;
+
   renderHeader(state);
   renderCurrentTab(state);
   renderWarning(state);
@@ -424,9 +403,7 @@ function render(state: PopupState): void {
 async function refresh(): Promise<void> {
   try {
     render(await getState());
-  } catch {
-    // The worker is starting; the next poll will draw it.
-  }
+  } catch {}
 }
 
 let actionError = '';
@@ -456,7 +433,9 @@ $<HTMLInputElement>('enabled').addEventListener('change', async (event) => {
   input.disabled = true;
 
   try {
-    if (input.checked && !hostAccess && !(await requestHostAccess())) {
+    const tab = lastState?.currentTab;
+
+    if (input.checked && tab && !(await requestSiteAccess(tab.tabId, tab.url))) {
       input.checked = false;
       actionError = t('errNoHostAccess');
       renderActionError();
@@ -470,15 +449,6 @@ $<HTMLInputElement>('enabled').addEventListener('change', async (event) => {
   }
 });
 
-$('access-grant').addEventListener('click', () => {
-  requestHostAccess().then((granted) => {
-    if (granted) {
-      actionError = '';
-      refresh();
-    }
-  });
-});
-
 $('open-app').addEventListener('click', () => openApp());
 $('warn-launch').addEventListener('click', () => openApp());
 
@@ -490,20 +460,6 @@ $('close-settings').addEventListener('click', () => {
   document.body.classList.remove('settings');
 });
 
-$<HTMLInputElement>('port').addEventListener('change', async (event) => {
-  const port = parseInt((event.target as HTMLInputElement).value, 10);
-
-  if (port > 0 && port < 65536) {
-    try {
-      await send({ type: 'setPort', port });
-    } catch {
-      // Drawn again below either way.
-    }
-  }
-
-  await refresh();
-});
-
 for (const id of SETTING_INPUTS) {
   $<HTMLInputElement>(id).addEventListener('change', async (event) => {
     try {
@@ -512,9 +468,7 @@ for (const id of SETTING_INPUTS) {
         key: id.replace('set-', ''),
         value: (event.target as HTMLInputElement).checked,
       });
-    } catch {
-      // Drawn again below either way.
-    }
+    } catch {}
 
     await refresh();
   });
@@ -539,7 +493,6 @@ localizePage();
 
 $('settings-version').textContent = t('version', [ext.runtime.getManifest().version]);
 
-checkHostAccess();
 refresh().finally(startPolling);
 
 window.addEventListener('unload', stopPolling);

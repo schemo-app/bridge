@@ -1,5 +1,3 @@
-// What this browser is and which of its pages the extension may not touch.
-
 const BROWSERS: [RegExp, string][] = [
   [/Edg\/([0-9]+)/, 'Edge'],
   [/OPR\/([0-9]+)/, 'Opera'],
@@ -8,16 +6,12 @@ const BROWSERS: [RegExp, string][] = [
   [/Chrome\/([0-9]+)/, 'Chrome'],
 ];
 
-// Inlined by Parcel at build time from the SCHEMO_TARGET the build script sets.
 const FALLBACK_NAME: Record<string, string> = {
   chrome: 'Chrome',
   edge: 'Edge',
   firefox: 'Firefox',
 };
 
-// What the app calls this browser. The version is read once: it cannot change while the worker runs,
-// and the app draws it beside the name. Chromium browsers all say "Chrome" in their user agent, so the
-// ones that also say who they are are asked first.
 export const BROWSER_NAME = ((): string => {
   const ua = navigator.userAgent || '';
 
@@ -44,7 +38,6 @@ const BLOCKED_SCHEMES = [
   'resource:',
 ];
 
-// Store pages: every browser keeps scripts off its own add-on gallery.
 const BLOCKED_HOSTS: [string, string][] = [
   ['chromewebstore.google.com', '/'],
   ['chrome.google.com', '/webstore'],

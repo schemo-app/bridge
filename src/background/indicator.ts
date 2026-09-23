@@ -1,15 +1,13 @@
-// The toolbar button of each captured tab: its icon says whether capture is reaching the app, its
-// title says how much has been captured.
-
 import { ext } from '../shared/api';
 import { t, tn } from '../shared/i18n';
 import { state } from './state';
 
 type IconState = 'recording' | 'disconnected' | 'normal';
 
+// Absolute paths: relative ones resolve against background/.
 function iconSet(prefix: string): Record<string, string> {
   return Object.fromEntries(
-      [16, 32, 48, 128].map((size) => [String(size), `icons/${prefix}icon${size}.png`])
+      [16, 32, 48, 128].map((size) => [String(size), `/icons/${prefix}icon${size}.png`])
   );
 }
 
@@ -22,9 +20,6 @@ const ICONS: Record<IconState, Record<string, string>> = {
 export const titleDisconnected = (): string => t('titleDisconnected');
 
 export function setCaptureIcon(tabId: number, iconState: IconState): void {
-  // The tab can be gone by the time this runs — a tab closed between the capture changing and the
-  // badge being drawn — and the call then rejects rather than doing nothing. There is no badge to
-  // fix on a tab that is not there, so the rejection is dropped where it is raised.
   ext.action.setIcon({ path: ICONS[iconState], tabId }).catch(() => {});
 }
 

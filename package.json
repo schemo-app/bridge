@@ -8,7 +8,7 @@
   "browserslist": [
     "chrome >= 111",
     "edge >= 111",
-    "firefox >= 140"
+    "firefox >= 142"
   ],
   "source": [
     "src/background/index.ts",
@@ -19,17 +19,18 @@
   "scripts": {
     "clean": "rimraf dist artifacts .parcel-cache",
     "build": "pnpm build:chrome && pnpm build:firefox && pnpm build:edge",
-    "build:chrome": "SCHEMO_TARGET=chrome parcel build --dist-dir dist/chrome --no-source-maps --no-optimize && copyfiles -u 1 \"public/**/*\" dist/chrome",
-    "build:firefox": "SCHEMO_TARGET=firefox parcel build --dist-dir dist/firefox --no-source-maps --no-optimize && copyfiles -u 1 \"public/**/*\" dist/firefox",
-    "build:edge": "SCHEMO_TARGET=edge parcel build --dist-dir dist/edge --no-source-maps --no-optimize && copyfiles -u 1 \"public/**/*\" dist/edge",
+    "build:chrome": "rimraf dist/chrome && SCHEMO_TARGET=chrome parcel build --dist-dir dist/chrome --no-source-maps --no-optimize && copyfiles -u 1 \"public/**/*\" dist/chrome",
+    "build:firefox": "rimraf dist/firefox && SCHEMO_TARGET=firefox parcel build --dist-dir dist/firefox --no-source-maps --no-optimize && copyfiles -u 1 \"public/**/*\" dist/firefox",
+    "build:edge": "rimraf dist/edge && SCHEMO_TARGET=edge parcel build --dist-dir dist/edge --no-source-maps --no-optimize && copyfiles -u 1 \"public/**/*\" dist/edge",
     "dev:chrome": "copyfiles -u 1 \"public/**/*\" dist/chrome && SCHEMO_TARGET=chrome parcel watch --dist-dir dist/chrome --no-hmr",
     "dev:firefox": "copyfiles -u 1 \"public/**/*\" dist/firefox && SCHEMO_TARGET=firefox parcel watch --dist-dir dist/firefox --no-hmr",
     "dev:edge": "copyfiles -u 1 \"public/**/*\" dist/edge && SCHEMO_TARGET=edge parcel watch --dist-dir dist/edge --no-hmr",
     "start:firefox": "web-ext run -s dist/firefox",
-    "zip": "pnpm build && pnpm zip:chrome && pnpm zip:firefox && pnpm zip:edge",
+    "zip": "pnpm build && pnpm zip:chrome && pnpm zip:firefox && pnpm zip:edge && pnpm zip:source",
     "zip:chrome": "web-ext build -s dist/chrome -a artifacts -n schemo-bridge-chrome-{version}.zip -o",
     "zip:firefox": "web-ext build -s dist/firefox -a artifacts -n schemo-bridge-firefox-{version}.zip -o",
     "zip:edge": "web-ext build -s dist/edge -a artifacts -n schemo-bridge-edge-{version}.zip -o",
+    "zip:source": "rm -f artifacts/schemo-bridge-source-$npm_package_version.zip && mkdir -p artifacts && git ls-files | zip -q -@ artifacts/schemo-bridge-source-$npm_package_version.zip",
     "typecheck": "tsc --noEmit",
     "lint:firefox": "web-ext lint -s dist/firefox",
     "check": "pnpm typecheck && pnpm build && pnpm lint:firefox"

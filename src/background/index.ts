@@ -1,7 +1,3 @@
-// The background: a service worker in Chrome and Edge, an event page in Firefox. Either can be
-// stopped and started again at any moment, so everything it must not forget is in storage and every
-// listener is registered on the first turn.
-
 import { ext } from '../shared/api';
 import { t } from '../shared/i18n';
 import type { AppFrame, RuntimeMessage } from '../shared/types';
@@ -16,13 +12,15 @@ import {
   startKeepalive,
   stopKeepalive,
 } from './capture';
+import { listenForGrants } from './access';
 import { respond } from './commands';
-import { connect, disconnect, isConnected, isOpen, send, sendState, setFrameHandler } from './connection';
+import { connect, disconnect, isConnected, sendState, setFrameHandler } from './connection';
 import { applyFilters } from './filters';
 import { refreshIndicator, setCaptureIcon, setCaptureTitle, titleDisconnected } from './indicator';
-import { forgetTab, isActive, loadStoredSettings, persistCapture, readPort, readState, state } from './state';
+import { forgetTab, isActive, loadStoredSettings, persistCapture, readState, state } from './state';
 
 loadStoredSettings();
+listenForGrants();
 
 setFrameHandler((frame: AppFrame) => {
   switch (frame.type) {
@@ -67,46 +65,28 @@ ext.runtime.onMessage.addListener((message: RuntimeMessage | undefined, sender, 
 });
 
 ext.alarms.onAlarm.addListener((alarm) => {
-  if (!isKeepalive(alarm)) {
-    return;
+  if (isKeepalive(alarm) && isActive() && !isConnected()) {
+    connect();
   }
-
-  readPort().then((port) => {
-    if (!isActive()) {
-      return;
-    }
-
-    if (!isOpen()) {
-      connect(port);
-      return;
-    }
-
-    send({ type: 'ping' });
-  });
 });
 
-ext.webNavigation.onCommitted.addListener((details) => {
-  if (details.frameId !== 0 || !state.captureTabIds.has(details.tabId)) {
+// A new document loses the hooks; re-inject into captured tabs.
+ext.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (!state.captureTabIds.has(tabId)) {
     return;
   }
 
-  refreshIndicator(isConnected());
+  if (changeInfo.status === 'loading') {
+    refreshIndicator(isConnected());
+    injectInto(tabId).catch(() => {});
+  }
 
-  injectInto(details.tabId).catch(() => {});
-
-  ext.tabs
-      .get(details.tabId)
-      .then((tab) => {
-        if (!state.captureTabIds.has(details.tabId)) {
-          return;
-        }
-
-        state.captureTabMeta.set(details.tabId, {
-          title: tab.title || '',
-          url: tab.url || '',
-        });
-      })
-      .catch(() => {});
+  if (changeInfo.url || changeInfo.title) {
+    state.captureTabMeta.set(tabId, {
+      title: tab.title || '',
+      url: tab.url || '',
+    });
+  }
 });
 
 ext.runtime.onStartup.addListener(async () => {
@@ -126,8 +106,6 @@ ext.tabs.onRemoved.addListener((tabId) => {
 
   forgetTab(tabId);
 
-  // A listener is not a place to await: the tab is already gone and the write is bookkeeping. The
-  // failure is dropped rather than left to surface as a rejection nobody asked for.
   persistCapture().catch(() => {});
 
   if (state.captureTabIds.size === 0) {
@@ -138,8 +116,6 @@ ext.tabs.onRemoved.addListener((tabId) => {
   sendState();
 });
 
-// A restarted worker picks up where the last one stopped: a paused capture waits for the app to
-// resume it, captured tabs are captured again.
 function restoreCaptured(tabIds: number[]): void {
   if (!tabIds.length) {
     return;
@@ -153,7 +129,7 @@ function restoreCaptured(tabIds: number[]): void {
     setCaptureTitle(tabId, titleDisconnected());
   }
 
-  readPort().then(connect);
+  connect();
 }
 
 (ext.storage.session.get(['captureTabIds', 'pausedOrigins']) as Promise<{
@@ -165,7 +141,7 @@ function restoreCaptured(tabIds: number[]): void {
     state.pausedOrigins = pausedOrigins;
 
     startKeepalive();
-    readPort().then(connect);
+    connect();
 
     return;
   }

@@ -2,13 +2,13 @@
 
 The browser extension for [Schemo](https://github.com/schemo-app/schemo).
 
-It captures the traffic of the tabs you choose and hands it to the desktop app — nothing leaves your machine.
+It captures the traffic of the tabs you choose and hands it to the desktop app on the same machine.
 
-Works in **Chrome**, **Edge** and **Firefox 140+**.
+Works in **Chrome**, **Edge** and **Firefox 142+**.
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 22 (`.nvmrc`)
 - pnpm 10 (`corepack enable` gives you the version pinned in `package.json`)
 
 ## Building
@@ -17,16 +17,10 @@ Works in **Chrome**, **Edge** and **Firefox 140+**.
 pnpm install
 pnpm build            # dist/chrome, dist/firefox, dist/edge
 pnpm build:firefox    # one browser only
-pnpm zip              # build and pack artifacts/schemo-bridge-<browser>-<version>.zip
+pnpm zip              # build and pack artifacts/schemo-bridge-<browser>-<version>.zip + sources
 pnpm check            # typecheck, build, and web-ext lint of the Firefox build
 pnpm clean            # remove dist, artifacts and the Parcel cache
 ```
-
-The bundling is Parcel's (entries are the `source` field of `package.json`), the icons are copied with
-`copyfiles`, and `mergeManifest.js` — a Parcel reporter — writes the manifest after each build.
-
-During development `pnpm dev:<browser>` rebuilds on every change; reload the extension in the browser
-to pick it up. `pnpm start:firefox` opens a throwaway Firefox profile with the extension loaded.
 
 ## Loading it unpacked
 
@@ -39,10 +33,15 @@ to pick it up. `pnpm start:firefox` opens a throwaway Firefox profile with the e
 
 1. Open `about:debugging#/runtime/this-firefox`.
 2. **Load Temporary Add-on…** → choose `dist/firefox/manifest.json`.
-3. If Firefox did not grant access to sites at install, the popup asks for it before the first capture.
 
-Then open the tab you want to watch and switch capture on in the popup.
-The app must be running; it listens on port `38761` by default (changeable in the popup settings).
+Install the application and run it once: extension connects by itself.
+
+Then open the tab you want to watch and switch capture on in the popup; the browser asks for access to that site the first time.
+
+An unpacked build has the id `klimdljbmlanhmdjfgbilkkhpahgjmhd` in Chrome and Edge (fixed by `key` in
+`manifest/chrome.json`) and `bridge@schemo.app` in Firefox. The app lets only these ids start its host;
+a store assigns its own id on first publication, and that id has to be added to
+`internal/infra/nativehost` in the app.
 
 ## How it is laid out
 
@@ -73,15 +72,13 @@ To add a language, copy `public/_locales/en` to `public/_locales/<lang>` and tra
 
 ## The protocol
 
-The extension connects to `ws://127.0.0.1:<port>` once `GET /health` answers.
+The extension connects through the browser's native messaging: the browser starts `schemo-host`,
+a small relay shipped with the app, for this extension only, and it carries messages to the running app over a
+socket in the app's data folder that only the current user can open.
 
-It sends `state` frames (what is being captured, which browser) and `request` frames (one per captured request),
-and receives `pause`, `resume` and `filters`.
-
-The shapes are in [`src/shared/types.ts`](src/shared/types.ts) and mirror `internal/transport/bridge/protocol.go` in the app — change both together.
+The shapes are in [`src/shared/types.ts`](src/shared/types.ts) and mirror `internal/transport/extension/protocol.go` in the app — change both together.
 
 ## Releasing
 
 Bump `version` in `package.json`, push a tag `v<version>`.
-The release workflow builds and attaches the three zips to a GitHub release;
-Upload them to the Chrome Web Store, Edge Add-ons and addons.mozilla.org.
+The release workflow builds and attaches the three zips and the source archive to a GitHub release.

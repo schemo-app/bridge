@@ -18,7 +18,6 @@
         <div class="pop-status">
           <span class="dot" id="status-dot"></span>
           <span id="status-text"></span>
-          <span class="mono pop-port" id="status-port"></span>
         </div>
       </div>
       <button class="icon-btn" id="open-settings" data-i18n-title="settings" data-i18n-aria-label="settings">
@@ -30,11 +29,6 @@
       <div class="card warn" id="warn-card" hidden>
         <div class="warn-text" id="warn-text"></div>
         <button class="btn-primary" id="warn-launch" data-i18n="launchApp"></button>
-      </div>
-
-      <div class="card warn" id="access-card" hidden>
-        <div class="warn-text" data-i18n="accessMissing"></div>
-        <button class="btn-primary" id="access-grant" data-i18n="grantAccess"></button>
       </div>
 
       <div class="card current" id="current-card">
@@ -62,11 +56,6 @@
         <span id="error-text"></span>
       </div>
 
-      <div class="buffered" id="buffered-line" hidden>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8v5" /><path d="M12 16.5v.01" /><circle cx="12" cy="12" r="9" /></svg>
-        <span id="buffered-text"></span>
-      </div>
-
       <section class="more" id="more-section" hidden>
         <div class="section-label" data-i18n="moreCapturing"></div>
         <div id="more-list"></div>
@@ -85,14 +74,6 @@
     </header>
 
     <div class="settings-body">
-      <div class="setting">
-        <div class="setting-text">
-          <div class="setting-name" data-i18n="settingPort"></div>
-          <div class="setting-hint" data-i18n="settingPortHint"></div>
-        </div>
-        <input type="number" id="port" min="1" max="65535" spellcheck="false" />
-      </div>
-
       <div class="setting">
         <div class="setting-text">
           <div class="setting-name" data-i18n="settingRemember"></div>

@@ -1,6 +1,3 @@
-// Runs in the isolated world of a captured tab and carries what the page hook reports to the worker.
-// The hook lives in the page's own world, where the extension API is not reachable.
-
 import { ext } from '../shared/api';
 import { MESSAGE_MARKER, type CapturedMessage, type HookMessage } from '../shared/types';
 
@@ -12,9 +9,7 @@ import { MESSAGE_MARKER, type CapturedMessage, type HookMessage } from '../share
   window.__schemoBridge = true;
 
   window.addEventListener('message', (event: MessageEvent<Partial<HookMessage> | null>) => {
-    // Only this page's own hook may report. Any frame on a captured page can post a message with the
-    // marker below, and a capture that came from one of them would be filed as this tab's — under
-    // this tab's title and address, which is what makes it worth forging.
+    // Only this window's own hook may report, not other frames.
     if (event.source !== window) {
       return;
     }
@@ -44,14 +39,9 @@ import { MESSAGE_MARKER, type CapturedMessage, type HookMessage } from '../share
       tabURL: location.href,
     };
 
-    // The extension was reloaded or updated under this page: this context is dead, and every call
-    // from it throws — once per request, on a page nobody is looking at. The hook in the page cannot
-    // be switched off from here (it lives in the page's own world, and this is the isolated one), so
-    // the failure is swallowed and capture ends when the page is reloaded.
+    // Throws once the extension was reloaded under this page.
     try {
       ext.runtime.sendMessage(message).catch(() => {});
-    } catch {
-      // Swallowed on purpose, and for the reason above.
-    }
+    } catch {}
   });
 })();

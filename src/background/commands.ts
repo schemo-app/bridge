@@ -1,5 +1,3 @@
-// What the popup can ask the worker.
-
 import { ext } from '../shared/api';
 import {
   DEFAULT_SETTINGS,
@@ -11,10 +9,11 @@ import {
   type TabInfo,
 } from '../shared/types';
 import { t } from '../shared/i18n';
+import { clearPendingCapture, setPendingCapture } from './access';
 import { BROWSER_NAME } from './browser';
 import { activeTab, startCapture, stopCapture, stopCaptureFor } from './capture';
-import { bufferedCount, connect, disconnect, isAppRunning, isConnected, send } from './connection';
-import { isActive, readState, state } from './state';
+import { getLinkState, probe, send } from './connection';
+import { state } from './state';
 
 function describeTab(tab: chrome.tabs.Tab | undefined): CurrentTab | null {
   if (tab?.id == null) {
@@ -46,27 +45,23 @@ async function getCapturedTabs(): Promise<TabInfo[]> {
         favIconUrl: tab.favIconUrl || '',
         count: state.capturedCounts.get(tabId) || 0,
       });
-    } catch {
-      // The tab is gone; onRemoved will forget it.
-    }
+    } catch {}
   }
 
   return tabs;
 }
 
 async function getState(): Promise<PopupState> {
-  const { port } = await readState();
-  const appRunning = isConnected() || (await isAppRunning(port));
+  const appRunning = await probe();
   const tab = await activeTab();
 
   return {
+    link: getLinkState(),
     capturing: tab?.id != null && state.captureTabIds.has(tab.id),
     activeTabId: tab?.id ?? null,
-    port,
     appRunning,
     capturedTabs: await getCapturedTabs(),
     currentTab: describeTab(tab),
-    bufferedCount: bufferedCount(),
     settings: { ...state.settings },
     filters: { ...state.filters },
     browser: BROWSER_NAME,
@@ -91,21 +86,6 @@ async function setSetting(key: string, value: boolean): Promise<ActionResult & {
   return { ok: true, settings: { ...state.settings } };
 }
 
-async function setPort(value: unknown): Promise<ActionResult> {
-  const port = parseInt(String(value), 10);
-
-  if (port > 0 && port < 65536) {
-    await ext.storage.local.set({ port });
-
-    if (isActive()) {
-      disconnect();
-      connect(port);
-    }
-  }
-
-  return { ok: true };
-}
-
 export async function respond(message: PopupRequest): Promise<unknown> {
   switch (message.type) {
     case 'getState':
@@ -123,15 +103,20 @@ export async function respond(message: PopupRequest): Promise<unknown> {
     case 'stopCapture':
       return stopCapture();
 
+    case 'pendingCapture':
+      await setPendingCapture(message.tabId, message.pattern);
+      return { ok: true };
+
+    case 'clearPending':
+      await clearPendingCapture();
+      return { ok: true };
+
     case 'stopCaptureTab':
       if (message.tabId != null && state.captureTabIds.has(message.tabId)) {
         await stopCaptureFor(message.tabId);
       }
 
       return { ok: true };
-
-    case 'setPort':
-      return setPort(message.port);
 
     default:
       return {

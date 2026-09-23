@@ -1,199 +1,151 @@
-// The socket to the desktop app on 127.0.0.1, and the buffer for what was captured while it was away.
-
-import type { AppFrame, ExtensionFrame } from '../shared/types';
+// Link to the Schemo app through native messaging (host registered by the app).
+import { ext } from '../shared/api';
+import type { AppFrame, ExtensionFrame, LinkState } from '../shared/types';
 import { BROWSER_NAME } from './browser';
 import { refreshIndicator } from './indicator';
-import { isActive, readPort, state } from './state';
+import { isActive, state } from './state';
 
-const RECONNECT_MS = 2500;
-const MAX_PENDING = 200;
+const HOST = 'app.schemo.bridge';
+const RETRY_MS = 5000;
 
-let socket: WebSocket | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
-let pending: string[] = [];
+let port: chrome.runtime.Port | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let connected = false;
+let link: LinkState = 'unknown';
 let onFrame: (frame: AppFrame) => void = () => {};
 
 export function isConnected(): boolean {
   return connected;
 }
 
-export function isOpen(): boolean {
-  return socket?.readyState === WebSocket.OPEN;
+export function getLinkState(): LinkState {
+  return link;
 }
 
-export function isOpenOrConnecting(): boolean {
-  return isOpen() || socket?.readyState === WebSocket.CONNECTING;
-}
-
-export function bufferedCount(): number {
-  return pending.length;
-}
-
-// What the app says is handled elsewhere: the connection only knows how to hear it.
 export function setFrameHandler(handler: (frame: AppFrame) => void): void {
   onFrame = handler;
 }
 
-export async function isAppRunning(port: number): Promise<boolean> {
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/health`, {
-      signal: AbortSignal.timeout(2000),
-    });
-
-    return response.ok;
-  } catch {
-    return false;
-  }
+function hostMissing(error: string): boolean {
+  return /not found|forbidden|no such native application/i.test(error);
 }
 
-export async function connect(port: number): Promise<void> {
-  clearTimeout(reconnectTimer);
-
-  if (socket?.readyState === WebSocket.OPEN) {
-    connected = true;
-    return;
-  }
-
-  if (socket?.readyState === WebSocket.CONNECTING) {
-    return;
-  }
-
-  if (socket) {
-    try {
-      socket.close();
-    } catch {
-      // Already closed.
-    }
-
-    socket = null;
-  }
-
-  connected = false;
-
-  if (!(await isAppRunning(port))) {
-    refreshIndicator(connected);
-    scheduleReconnect();
-    return;
-  }
-
-  let ws: WebSocket;
-
-  try {
-    ws = new WebSocket(`ws://127.0.0.1:${port}`);
-  } catch {
-    scheduleReconnect();
-    return;
-  }
-
-  socket = ws;
-
-  ws.onopen = () => {
-    if (socket !== ws) {
-      return;
-    }
-
-    connected = true;
-    refreshIndicator(connected);
-    sendState();
-
-    for (const message of pending.splice(0)) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(message);
-      }
-    }
-  };
-
-  ws.onclose = () => {
-    if (socket !== ws) {
-      return;
-    }
-
-    socket = null;
-    connected = false;
-    refreshIndicator(connected);
-    scheduleReconnect();
-  };
-
-  ws.onerror = () => {};
-
-  ws.onmessage = ({ data }) => {
-    if (socket !== ws) {
-      return;
-    }
-
-    let frame: AppFrame;
-
-    try {
-      frame = JSON.parse(String(data)) as AppFrame;
-    } catch {
-      return;
-    }
-
-    onFrame(frame);
-  };
+function lastError(p: chrome.runtime.Port): string {
+  return (
+      ext.runtime.lastError?.message ||
+      (p as unknown as { error?: { message?: string } }).error?.message ||
+      ''
+  );
 }
 
-function scheduleReconnect(): void {
-  clearTimeout(reconnectTimer);
+export function connect(): void {
+  clearTimeout(retryTimer);
+
+  if (port) {
+    return;
+  }
+
+  let p: chrome.runtime.Port;
+
+  try {
+    p = ext.runtime.connectNative(HOST);
+  } catch {
+    link = 'no-host';
+    return;
+  }
+
+  port = p;
+
+  p.onMessage.addListener((message: { type?: string }) => {
+    if (port !== p) {
+      return;
+    }
+
+    if (message?.type === 'unavailable') {
+      link = 'no-app';
+      gone(p);
+      return;
+    }
+
+    if (message?.type === 'hello') {
+      connected = true;
+      link = 'connected';
+      refreshIndicator(connected);
+      sendState();
+      return;
+    }
+
+    if (connected) {
+      onFrame(message as AppFrame);
+    }
+  });
+
+  p.onDisconnect.addListener(() => {
+    if (port !== p) {
+      return;
+    }
+
+    link = hostMissing(lastError(p)) ? 'no-host' : 'no-app';
+    gone(p);
+  });
+}
+
+function gone(p: chrome.runtime.Port): void {
+  if (port === p) {
+    port = null;
+  }
+
+  try {
+    p.disconnect();
+  } catch {}
 
   connected = false;
   refreshIndicator(connected);
 
-  reconnectTimer = setTimeout(async () => {
-    const port = await readPort();
-
-    if (isActive()) {
-      connect(port);
-    }
-  }, RECONNECT_MS);
+  if (isActive()) {
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(connect, RETRY_MS);
+  }
 }
 
-// The buffer is deliberately left alone: it exists for exactly this moment. Frames in it were
-// captured while the app was away — its window closed, another port, a socket that dropped — and the
-// app is still owed them; emptying it here is what made a changed port lose everything captured so
-// far. Nothing is kept forever either: the buffer has a ceiling, and the worker's memory is what it
-// lives in.
 export function disconnect(): void {
-  clearTimeout(reconnectTimer);
+  clearTimeout(retryTimer);
 
-  if (socket) {
-    try {
-      socket.close();
-    } catch {
-      // Already closed.
-    }
+  const p = port;
+  port = null;
+  connected = false;
 
-    socket = null;
+  try {
+    p?.disconnect();
+  } catch {}
+}
+
+// One-shot check for the popup that doesn't keep a connection open.
+export async function probe(): Promise<boolean> {
+  if (connected) {
+    return true;
   }
 
-  connected = false;
+  try {
+    const answer = (await ext.runtime.sendNativeMessage(HOST, { type: 'probe' })) as {
+      type?: string;
+    };
+
+    link = answer?.type === 'hello' ? 'connected' : 'no-app';
+    return answer?.type === 'hello';
+  } catch (err) {
+    link = hostMissing(String((err as Error)?.message ?? err)) ? 'no-host' : 'no-app';
+    return false;
+  }
 }
 
-// Sends now if the socket is open, and returns whether it was.
 export function send(frame: ExtensionFrame): boolean {
-  if (socket?.readyState !== WebSocket.OPEN) {
+  if (!connected || !port) {
     return false;
   }
 
-  socket.send(JSON.stringify(frame));
+  port.postMessage(frame);
   return true;
-}
-
-// Sends now, or keeps the frame for when the app is back.
-export function enqueue(frame: ExtensionFrame): void {
-  const message = JSON.stringify(frame);
-
-  if (socket?.readyState === WebSocket.OPEN) {
-    socket.send(message);
-    return;
-  }
-
-  pending.push(message);
-
-  if (pending.length > MAX_PENDING) {
-    pending.shift();
-  }
 }
 
 export function sendState(): void {
@@ -203,9 +155,6 @@ export function sendState(): void {
     paused: state.paused,
     tabs: state.captureTabIds.size,
     browser: BROWSER_NAME,
-    // The same tabs the count counts, each with the moment it was armed. A tab whose time nobody
-    // knows — one restored after a restart that predates this — is left out rather than given a
-    // time it never had, and the app draws it without one.
     tabList: [...state.captureTabIds]
         .filter((id) => state.captureTabSince.has(id))
         .map((id) => ({ tabId: id, since: state.captureTabSince.get(id)! })),

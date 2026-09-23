@@ -12,10 +12,11 @@
   "permissions": [
     "storage",
     "scripting",
-    "webNavigation",
-    "alarms"
+    "activeTab",
+    "alarms",
+    "nativeMessaging"
   ],
-  "host_permissions": [
+  "optional_host_permissions": [
     "<all_urls>"
   ],
   "action": {

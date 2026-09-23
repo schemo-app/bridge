@@ -79,7 +79,6 @@ body.settings .view-settings {
   display: block;
 }
 
-/* ---- Header ---- */
 .pop-head {
   display: flex;
   align-items: center;
@@ -115,10 +114,6 @@ body.settings .view-settings {
   gap: 6px;
   font-size: 11.5px;
   color: var(--text-secondary);
-}
-
-.pop-port {
-  color: var(--text-tertiary);
 }
 
 .dot {
@@ -157,7 +152,6 @@ body.settings .view-settings {
   color: var(--text);
 }
 
-/* ---- Body ---- */
 .pop-body {
   display: flex;
   flex-direction: column;
@@ -358,8 +352,6 @@ body.settings .view-settings {
   display: none;
 }
 
-/* ---- Buffer note ---- */
-.buffered,
 .action-error {
   display: flex;
   align-items: center;
@@ -369,7 +361,6 @@ body.settings .view-settings {
   color: var(--text-tertiary);
 }
 
-.buffered[hidden],
 .action-error[hidden] {
   display: none;
 }
@@ -378,7 +369,6 @@ body.settings .view-settings {
   color: var(--orange);
 }
 
-/* ---- Other captured tabs ---- */
 .more {
   display: flex;
   flex-direction: column;
@@ -461,7 +451,6 @@ body.settings .view-settings {
   color: var(--text);
 }
 
-/* ---- Bottom action ---- */
 .open-app {
   display: block;
   width: calc(100% - 24px);
@@ -492,7 +481,6 @@ body.settings .view-settings {
   filter: none;
 }
 
-/* ---- Switches ---- */
 .switch {
   position: relative;
   display: inline-block;
@@ -560,7 +548,6 @@ body.settings .view-settings {
   cursor: default;
 }
 
-/* ---- Settings ---- */
 .settings-head {
   display: flex;
   align-items: center;
@@ -611,46 +598,12 @@ body.settings .view-settings {
   line-height: 1.35;
 }
 
-input[type="number"] {
-  width: 82px;
-  height: 28px;
-  flex: none;
-  padding: 0 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: 7px;
-  background: var(--card);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 12.5px;
-  text-align: right;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-input[type="number"]:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-input[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
 .settings-foot {
   padding-top: 10px;
   font-size: 10.5px;
   color: var(--text-tertiary);
 }
 
-/* The capture rules, read-only: they belong to the app, and this is where somebody looks to find out
-   why a request they expected is not in the list. */
 .filters {
   display: flex;
   flex-direction: column;

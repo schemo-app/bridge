@@ -1,11 +1,9 @@
-// Which tabs are captured: arming a tab, disarming it, pausing and resuming all of them, and taking in
-// what their hooks report.
-
 import { ext } from '../shared/api';
 import { t } from '../shared/i18n';
+import { sitePattern } from '../shared/sites';
 import type { ActionResult, CapturedMessage } from '../shared/types';
 import { isBlockedPage } from './browser';
-import { connect, disconnect, enqueue, isConnected, isOpen, isOpenOrConnecting, sendState } from './connection';
+import { connect, disconnect, isConnected, send, sendState } from './connection';
 import { keptByFilters } from './filters';
 import {
   captureTitleText,
@@ -14,11 +12,10 @@ import {
   setCaptureTitle,
   titleDisconnected,
 } from './indicator';
-import { forgetTab, persistCapture, readPort, state } from './state';
+import { forgetTab, persistCapture, state } from './state';
 
 const KEEPALIVE = 'schemo-keepalive';
-// Chrome does not fire alarms more often than every thirty seconds; asking for less only earns a
-// warning in the console.
+// Chrome's minimum alarm period.
 const KEEPALIVE_MINUTES = 0.5;
 
 export function isKeepalive(alarm: chrome.alarms.Alarm): boolean {
@@ -75,6 +72,23 @@ async function forgetOrigin(origin: string): Promise<void> {
   }
 }
 
+export async function forgetOriginsWithoutAccess(): Promise<void> {
+  const origins = await rememberedOrigins();
+  const kept: string[] = [];
+
+  for (const origin of origins) {
+    const pattern = sitePattern(origin);
+
+    if (pattern && (await ext.permissions.contains({ origins: [pattern] }))) {
+      kept.push(origin);
+    }
+  }
+
+  if (kept.length !== origins.length) {
+    await ext.storage.local.set({ captureOrigins: kept });
+  }
+}
+
 export async function rememberedOrigins(): Promise<string[]> {
   const { captureOrigins = [] } = (await ext.storage.local.get('captureOrigins')) as {
     captureOrigins?: string[];
@@ -115,9 +129,6 @@ async function disableInTab(tabId: number): Promise<void> {
       world: 'MAIN',
     });
   } catch (err) {
-    // A tab that cannot be reached — one that was discarded, one on a URL the extension may not touch.
-    // Saying so is all that can be done here: the hook in that page keeps capturing and the worker
-    // drops its frames, so capture there ends when the page is reloaded rather than now.
     console.warn(`[schemo] could not switch capture off in tab ${tabId}:`, err);
   }
 }
@@ -132,8 +143,6 @@ function addCaptureTab(tab: chrome.tabs.Tab, resetCount = true): void {
   state.captureTabIds.add(tab.id);
 
   if (fresh) {
-    // What the app draws as "capturing since". The time the tab was armed, not the time of its first
-    // request: those differ by however long the page takes to ask for anything.
     state.captureTabSince.set(tab.id, Date.now());
   }
 
@@ -153,8 +162,12 @@ export async function activeTab(): Promise<chrome.tabs.Tab | undefined> {
 }
 
 export async function startCapture(): Promise<ActionResult & { tabId?: number }> {
-  const tab = await activeTab();
+  return startCaptureOn(await activeTab());
+}
 
+export async function startCaptureOn(
+    tab: chrome.tabs.Tab | undefined
+): Promise<ActionResult & { tabId?: number }> {
   if (tab?.id == null) {
     return { ok: false, error: t('errNoActiveTab') };
   }
@@ -181,8 +194,8 @@ export async function startCapture(): Promise<ActionResult & { tabId?: number }>
   setCaptureIcon(tab.id, 'disconnected');
   setCaptureTitle(tab.id, titleDisconnected());
 
-  if (!isOpen()) {
-    connect(await readPort());
+  if (!isConnected()) {
+    connect();
   } else {
     refreshIndicator(isConnected());
     sendState();
@@ -275,7 +288,7 @@ export async function captureByOrigins(origins: string[]): Promise<number> {
   startKeepalive();
   refreshIndicator(isConnected());
 
-  await connect(await readPort());
+  connect();
   sendState();
 
   return state.captureTabIds.size;
@@ -300,13 +313,7 @@ export async function pauseAll(): Promise<void> {
   }
 
   startKeepalive();
-
-  const port = await readPort();
-
-  if (!isOpenOrConnecting()) {
-    connect(port);
-  }
-
+  connect();
   sendState();
 }
 
@@ -345,14 +352,7 @@ export function handleCapturedRequest(message: CapturedMessage, sender: chrome.r
     return;
   }
 
-  state.capturedCounts.set(tabId, (state.capturedCounts.get(tabId) || 0) + 1);
-  state.capturedLastAt.set(tabId, Date.now());
-
-  if (isConnected()) {
-    setCaptureTitle(tabId, captureTitleText(tabId));
-  }
-
-  enqueue({
+  const sent = send({
     type: 'request',
     id: makeId(),
     method: message.method,
@@ -367,12 +367,19 @@ export function handleCapturedRequest(message: CapturedMessage, sender: chrome.r
     hasTiming: Boolean(message.hasTiming),
     waitMs: message.waitMs || 0,
     downloadMs: message.downloadMs || 0,
-    // The moment the request left, which the interceptor knows and this does not: a frame is handled
-    // after the fact, and a slow request would otherwise be filed at the time it came back.
     startedAt: message.startedAt || Date.now(),
     tabId,
     tabTitle: message.tabTitle,
     tabURL: message.tabURL,
     favIconUrl: sender.tab?.favIconUrl || '',
   });
+
+  // Not stored: a request the app can't take right now is dropped.
+  if (!sent) {
+    return;
+  }
+
+  state.capturedCounts.set(tabId, (state.capturedCounts.get(tabId) || 0) + 1);
+  state.capturedLastAt.set(tabId, Date.now());
+  setCaptureTitle(tabId, captureTitleText(tabId));
 }

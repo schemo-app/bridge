@@ -1,11 +1,7 @@
-// The rules the app set: what is worth sending on.
-
 import { ext } from '../shared/api';
 import { DEFAULT_FILTERS, type CaptureFilters, type HeaderMap, type InterceptedRequest } from '../shared/types';
 import { state } from './state';
 
-// Hosts whose requests tell somebody else what the page did. A list rather than a rule: "analytics"
-// is a judgement, and a judgement belongs in a list somebody can read and disagree with.
 const TRACKER_HOSTS = [
   'google-analytics.com',
   'analytics.google.com',
@@ -71,16 +67,10 @@ function looksLikeAsset(message: InterceptedRequest): boolean {
   return accept.startsWith('image/') || accept.startsWith('font/') || accept.startsWith('text/css');
 }
 
-// A content type is all this asks: what the response *is*, not what is in it. The page's own
-// placeholder for a binary body — `[binary response: image/png]` — is not JSON either, and a rule
-// that kept those would keep exactly what it was meant to drop.
 function answersWithJson(message: InterceptedRequest): boolean {
   return /json/i.test(headerValue(message.responseHeaders, 'content-type'));
 }
 
-// keptByFilters is the rule the app set: what is worth sending on. It runs where every captured
-// request passes, before anything is counted or sent, because a filter that dropped a request after
-// the app had heard about it would be a filter only of the list.
 export function keptByFilters(message: InterceptedRequest, filters: CaptureFilters = state.filters): boolean {
   const host = hostOf(message.url);
 
@@ -103,14 +93,6 @@ export function keptByFilters(message: InterceptedRequest, filters: CaptureFilte
   return true;
 }
 
-// applyFilters is the app telling this extension what to keep. Stored, so a worker restart does not
-// forget it.
-//
-// Nothing is answered, and that is deliberate: the app answers every state frame it hears with the
-// rules, so a state frame sent from here would be heard, answered with the same rules, and heard
-// again — a loop with a disk write and a socket frame on every turn. The app does not need the
-// answer anyway: it repeats the rules on every state frame, and this extension sends one when the
-// socket opens, which is the moment it needs them.
 export async function applyFilters(rules: Partial<CaptureFilters>): Promise<void> {
   state.filters = { ...DEFAULT_FILTERS, ...rules };
 
