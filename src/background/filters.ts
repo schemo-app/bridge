@@ -41,6 +41,17 @@ export function hostOf(url: string | undefined): string {
   }
 }
 
+// `*.example.com` matches subdomains only; anything else is an exact host.
+export function hostMatches(pattern: string, host: string): boolean {
+  const p = pattern.trim().toLowerCase();
+
+  if (p.startsWith('*.')) {
+    return host.endsWith(p.slice(1));
+  }
+
+  return host === p;
+}
+
 function isTrackerHost(host: string): boolean {
   return TRACKER_HOSTS.some((known) => host === known || host.endsWith(`.${known}`));
 }
@@ -74,7 +85,7 @@ function answersWithJson(message: InterceptedRequest): boolean {
 export function keptByFilters(message: InterceptedRequest, filters: CaptureFilters = state.filters): boolean {
   const host = hostOf(message.url);
 
-  if (filters.hosts.length && !filters.hosts.includes(host)) {
+  if (filters.hosts.length && !filters.hosts.some((pattern) => hostMatches(pattern, host))) {
     return false;
   }
 

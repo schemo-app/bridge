@@ -58,6 +58,7 @@ export type PopupRequest =
   | { type: 'startCapture' }
   | { type: 'pendingCapture'; tabId: number; pattern: string }
   | { type: 'clearPending' }
+  | { type: 'setFilters'; filters: CaptureFilters }
   | { type: 'stopCapture' }
   | { type: 'stopCaptureTab'; tabId: number };
 
@@ -122,4 +123,5 @@ export interface StateFrame {
 export type ExtensionFrame =
   | RequestFrame
   | StateFrame
-  | { type: 'focus'; tab: number };
+  | { type: 'focus'; tab: number }
+  | { type: 'filters'; filters: CaptureFilters };

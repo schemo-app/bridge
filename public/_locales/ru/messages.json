@@ -69,7 +69,7 @@
     "message": "Приложение не запущено"
   },
   "warnAppDown": {
-    "message": "Приложение Schemo не запущено. Перехват продолжится, как только оно запустится."
+    "message": "Приложение не запущено. Перехват продолжится после запуска приложения."
   },
   "launchApp": {
     "message": "Запустить приложение"
@@ -119,14 +119,11 @@
   "settingFilters": {
     "message": "Фильтры перехвата"
   },
-  "settingFiltersHint": {
-    "message": "Задаются в приложении"
-  },
   "filterHosts": {
     "message": "Хосты"
   },
   "filterHostsAll": {
-    "message": "все"
+    "message": "Все"
   },
   "filterStatic": {
     "message": "Статические файлы"
@@ -157,5 +154,20 @@
   },
   "statusNotInstalled": {
     "message": "Приложение не установлено"
+  },
+  "filterHostsList": {
+    "message": "Список"
+  },
+  "filterHostsPlaceholder": {
+    "message": "api.example.com, *.example.com"
+  },
+  "filtersApplyNow": {
+    "message": "Применяются сразу"
+  },
+  "filtersOffline": {
+    "message": "Можно изменить, когда приложение запущено"
+  },
+  "errFiltersOffline": {
+    "message": "Приложение не запущено — фильтры не изменены"
   }
 }

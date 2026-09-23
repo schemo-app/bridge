@@ -107,35 +107,15 @@ function agoLabel(at: number): string {
   return t('lastHours', [Math.round(min / 60)]);
 }
 
-function buildIcon(favIconUrl: string, label: string): HTMLElement {
-  const wrap = document.createElement('span');
-  wrap.className = 'icon-slot';
-
-  const initial = (label || '?').trim().charAt(0) || '?';
-
-  const avatar = document.createElement('span');
-  avatar.className = 'avatar';
-  avatar.textContent = initial;
-  avatar.hidden = Boolean(favIconUrl);
+function fillIcon(slot: HTMLElement, favIconUrl: string, label: string): void {
+  slot.textContent = (label || '?').trim().charAt(0) || '?';
 
   if (favIconUrl) {
     const img = document.createElement('img');
-
-    img.className = 'favicon';
     img.src = favIconUrl;
     img.alt = '';
-
-    img.addEventListener('error', () => {
-      img.classList.add('hidden');
-      avatar.hidden = false;
-    });
-
-    wrap.appendChild(img);
+    img.addEventListener('load', () => slot.replaceChildren(img));
   }
-
-  wrap.appendChild(avatar);
-
-  return wrap;
 }
 
 function buildMoreRow(tab: TabInfo): HTMLElement {
@@ -143,30 +123,28 @@ function buildMoreRow(tab: TabInfo): HTMLElement {
   row.className = 'more-row';
 
   const host = hostnameOf(tab.url);
-
-  row.appendChild(buildIcon(tab.favIconUrl, tab.title || host));
+  const icon = document.createElement('span');
+  icon.className = 'icon-slot';
+  fillIcon(icon, tab.favIconUrl, tab.title || host);
 
   const text = document.createElement('div');
-  text.className = 'more-text';
+  text.className = 'tab-text';
 
-  const title = document.createElement('div');
-  title.className = 'more-title';
+  const title = document.createElement('span');
+  title.className = 'tab-title';
   title.textContent = tab.title || host || t('tabFallback');
 
-  const hostEl = document.createElement('div');
-  hostEl.className = 'more-host mono';
+  const hostEl = document.createElement('span');
+  hostEl.className = 'tab-host mono';
   hostEl.textContent = host;
 
   text.append(title, hostEl);
-  row.appendChild(text);
 
   const count = document.createElement('span');
   count.className = 'more-count';
   count.textContent = String(tab.count || 0);
-  row.appendChild(count);
 
   const stop = document.createElement('button');
-
   stop.className = 'more-stop';
   stop.title = t('stopTabCapture');
   stop.innerHTML =
@@ -174,7 +152,6 @@ function buildMoreRow(tab: TabInfo): HTMLElement {
 
   stop.addEventListener('click', async (event) => {
     event.stopPropagation();
-
     stop.disabled = true;
 
     try {
@@ -184,113 +161,57 @@ function buildMoreRow(tab: TabInfo): HTMLElement {
     }
   });
 
-  row.appendChild(stop);
-
-  row.addEventListener('click', () => {
-    openApp(tab.tabId);
-  });
+  row.append(icon, text, count, stop);
+  row.addEventListener('click', () => openApp(tab.tabId));
 
   return row;
 }
 
 function renderHeader(state: PopupState): void {
-  const dot = $('status-dot');
-  const text = $('status-text');
-
-  if (state.appRunning) {
-    dot.className = 'dot dot-status-ok';
-    text.textContent = t('statusConnected');
-    return;
-  }
-
-  dot.className = 'dot dot-status-warn';
-  text.textContent = t(state.link === 'no-host' ? 'statusNotInstalled' : 'statusNotRunning');
+  $('status-dot').className = state.appRunning ? 'dot ok' : 'dot';
+  $('status-text').textContent = state.appRunning
+      ? t('statusConnected')
+      : t(state.link === 'no-host' ? 'statusNotInstalled' : 'statusNotRunning');
 }
 
 function renderCurrentTab(state: PopupState): void {
-  const card = $('current-card');
   const tab = state.currentTab;
   const capturing = Boolean(tab?.capturing);
 
-  card.className = 'card current ' + (capturing ? 'on' : 'off') + (state.appRunning ? '' : ' muted');
+  $('current-card').classList.toggle('muted', !state.appRunning);
+  $<HTMLInputElement>('enabled').checked = capturing;
 
-  if (!tab) {
-    $('current-title').textContent = t('noActiveTab');
-    $('current-host').textContent = '';
-    $<HTMLInputElement>('enabled').checked = false;
-    $('current-count').textContent = '';
-    $('current-ago').textContent = '';
-    $('current-arrow').hidden = true;
-    $('current-foot').classList.remove('actionable', 'text');
-
-    return;
-  }
-
-  const host = hostnameOf(tab.url);
-  const label = tab.title || host || t('tabFallback');
-
-  const top = card.querySelector('.current-top')!;
-
-  top.querySelectorAll('.icon-slot').forEach((node) => node.remove());
-  top.prepend(buildIcon(tab.favIconUrl, label));
+  const host = tab ? hostnameOf(tab.url) : '';
+  const label = tab ? tab.title || host || t('tabFallback') : t('noActiveTab');
 
   $('current-title').textContent = label;
   $('current-host').textContent = host;
-  $<HTMLInputElement>('enabled').checked = capturing;
+  fillIcon($('current-icon'), tab?.favIconUrl || '', label);
+
+  const foot = $('current-foot');
+
+  foot.hidden = !tab || !capturing || !state.appRunning;
+  foot.classList.remove('link');
+  foot.onclick = null;
+
+  if (foot.hidden || !tab) {
+    return;
+  }
 
   const count = tab.count || 0;
-  const foot = $('current-foot');
-  const countEl = $('current-count');
-  const agoEl = $('current-ago');
-  const arrow = $('current-arrow');
 
-  foot.hidden = !state.appRunning;
+  $('current-count').textContent = count ? tn('requests', count) : '';
+  $('current-ago').textContent = count ? agoLabel(tab.lastAt) : t('waitingFirst');
+  $('current-arrow').hidden = !count;
 
-  if (foot.hidden) {
-    foot.classList.remove('actionable', 'text');
-    foot.onclick = null;
-    return;
+  if (count) {
+    foot.classList.add('link');
+    foot.onclick = () => openApp(tab.tabId);
   }
-
-  if (!capturing) {
-    countEl.textContent = '';
-    agoEl.textContent = t('tabNotCaptured');
-    arrow.hidden = true;
-
-    foot.classList.remove('actionable');
-    foot.classList.add('text');
-    foot.onclick = null;
-
-    return;
-  }
-
-  foot.classList.remove('text');
-
-  if (count === 0) {
-    countEl.textContent = '';
-    agoEl.textContent = t('waitingFirst');
-    arrow.hidden = true;
-
-    foot.classList.remove('actionable');
-    foot.onclick = null;
-
-    return;
-  }
-
-  countEl.textContent = tn('requests', count);
-  agoEl.textContent = agoLabel(tab.lastAt);
-  arrow.hidden = false;
-
-  foot.classList.add('actionable');
-  foot.onclick = () => {
-    openApp(tab.tabId);
-  };
 }
 
 function renderWarning(state: PopupState): void {
-  const warn = $('warn-card');
-
-  warn.hidden = state.appRunning;
+  $('warn-card').hidden = state.appRunning;
 
   if (!state.appRunning) {
     const missing = state.link === 'no-host';
@@ -301,89 +222,55 @@ function renderWarning(state: PopupState): void {
 }
 
 function renderActionError(): void {
-  const line = $('error-line');
-
-  line.hidden = !actionError;
-
-  if (actionError) {
-    $('error-text').textContent = actionError;
-  }
+  $('error-line').hidden = !actionError;
+  $('error-text').textContent = actionError;
 }
 
 function renderOtherTabs(state: PopupState): void {
-  const section = $('more-section');
-  const list = $('more-list');
-
-  list.textContent = '';
-
   const others = (state.capturedTabs || []).filter((tab) => tab.tabId !== state.activeTabId);
 
-  section.hidden = others.length === 0;
-
-  if (section.hidden) {
-    return;
-  }
-
-  for (const tab of others) {
-    list.appendChild(buildMoreRow(tab));
-  }
+  $('more-section').hidden = others.length === 0;
+  $('more-list').replaceChildren(...others.map(buildMoreRow));
 }
 
-function renderOpenButton(state: PopupState): void {
-  const secondary = state.appRunning && !state.capturing;
+let hostsMode: 'all' | 'list' | null = null;
 
-  $('open-app').className = 'open-app' + (secondary ? ' secondary' : '');
+function selectHostsMode(mode: 'all' | 'list'): void {
+  const active = $(mode === 'all' ? 'hosts-all' : 'hosts-list');
+  const thumb = $('hosts-thumb');
+
+  $('hosts-all').classList.toggle('on', mode === 'all');
+  $('hosts-list').classList.toggle('on', mode === 'list');
+  thumb.style.width = `${active.offsetWidth}px`;
+  thumb.style.transform = `translateX(${active.offsetLeft}px)`;
 }
-
-const SETTING_INPUTS = ['set-rememberTabs'];
 
 function renderSettings(state: PopupState): void {
-  const active = document.activeElement;
+  $<HTMLInputElement>('set-rememberTabs').checked = state.settings.rememberTabs;
 
-  if (active?.closest?.('.view-settings')) {
-    return;
+  const filters = state.filters;
+  const editable = state.appRunning;
+
+  $<HTMLFieldSetElement>('filters').disabled = !editable;
+  $('filters-hint').textContent = filtersError || t(editable ? 'filtersApplyNow' : 'filtersOffline');
+
+  const mode = hostsMode ?? (filters.hosts.length ? 'list' : 'all');
+
+  selectHostsMode(mode);
+  $('hosts-input-row').hidden = mode !== 'list';
+
+  const input = $<HTMLInputElement>('hosts-input');
+
+  if (document.activeElement !== input) {
+    input.value = filters.hosts.join(', ');
   }
 
-  for (const id of SETTING_INPUTS) {
-    const key = id.replace('set-', '') as keyof PopupState['settings'];
-
-    $<HTMLInputElement>(id).checked = Boolean(state.settings?.[key]);
-  }
-
-  renderFilters(state.filters);
-}
-
-function renderFilters(filters: CaptureFilters | undefined): void {
-  const box = $('filters');
-
-  if (!box || !filters) {
-    return;
-  }
-
-  const rows: [string, string][] = [
-    [t('filterHosts'), filters.hosts?.length ? filters.hosts.join(', ') : t('filterHostsAll')],
-    [t('filterStatic'), filters.static ? t('filterSkipped') : t('filterKept')],
-    [t('filterAnalytics'), filters.analytics ? t('filterSkipped') : t('filterKept')],
-    [t('filterJson'), filters.json ? t('yes') : t('no')],
-  ];
-
-  box.textContent = '';
-
-  for (const [name, value] of rows) {
-    const row = document.createElement('div');
-    row.className = 'filter-row';
-
-    const key = document.createElement('span');
-    key.className = 'filter-name';
-    key.textContent = name;
-
-    const val = document.createElement('span');
-    val.className = 'filter-value mono';
-    val.textContent = value;
-
-    row.append(key, val);
-    box.append(row);
-  }
+  $<HTMLInputElement>('filter-static').checked = filters.static;
+  $<HTMLInputElement>('filter-analytics').checked = filters.analytics;
+  $<HTMLInputElement>('filter-json').checked = filters.json;
+  $('static-value').textContent = t(filters.static ? 'filterSkipped' : 'filterKept');
+  $('analytics-value').textContent = t(filters.analytics ? 'filterSkipped' : 'filterKept');
+  $('json-value').textContent = t(filters.json ? 'yes' : 'no');
 }
 
 let lastState: PopupState | null = null;
@@ -396,7 +283,6 @@ function render(state: PopupState): void {
   renderWarning(state);
   renderActionError();
   renderOtherTabs(state);
-  renderOpenButton(state);
   renderSettings(state);
 }
 
@@ -407,6 +293,7 @@ async function refresh(): Promise<void> {
 }
 
 let actionError = '';
+let filtersError = '';
 
 async function runAction(message: PopupRequest): Promise<void> {
   try {
@@ -418,6 +305,26 @@ async function runAction(message: PopupRequest): Promise<void> {
   }
 
   await refresh();
+}
+
+async function updateFilters(change: Partial<CaptureFilters>): Promise<void> {
+  if (!lastState) {
+    return;
+  }
+
+  try {
+    const res = await send({ type: 'setFilters', filters: { ...lastState.filters, ...change } });
+
+    filtersError = res?.ok ? '' : res?.error || t('errActionFailed');
+  } catch {
+    filtersError = t('errNoAnswer');
+  }
+
+  await refresh();
+}
+
+function parseHosts(text: string): string[] {
+  return [...new Set(text.split(/[\s,]+/).map((h) => h.trim().toLowerCase()).filter(Boolean))];
 }
 
 let actionInProgress = false;
@@ -454,23 +361,55 @@ $('warn-launch').addEventListener('click', () => openApp());
 
 $('open-settings').addEventListener('click', () => {
   document.body.classList.add('settings');
+
+  // Measure the thumb once visible and animate only moves after that first placement.
+  const segmented = document.querySelector('.segmented')!;
+  segmented.classList.remove('ready');
+  if (lastState) {
+    renderSettings(lastState);
+  }
+  void $('hosts-thumb').offsetWidth;
+  segmented.classList.add('ready');
 });
 
 $('close-settings').addEventListener('click', () => {
   document.body.classList.remove('settings');
 });
 
-for (const id of SETTING_INPUTS) {
-  $<HTMLInputElement>(id).addEventListener('change', async (event) => {
-    try {
-      await send({
-        type: 'setSetting',
-        key: id.replace('set-', ''),
-        value: (event.target as HTMLInputElement).checked,
-      });
-    } catch {}
+$<HTMLInputElement>('set-rememberTabs').addEventListener('change', async (event) => {
+  try {
+    await send({ type: 'setSetting', key: 'rememberTabs', value: (event.target as HTMLInputElement).checked });
+  } catch {}
 
-    await refresh();
+  await refresh();
+});
+
+$('hosts-all').addEventListener('click', () => {
+  hostsMode = 'all';
+  selectHostsMode('all');
+  updateFilters({ hosts: [] });
+});
+
+$('hosts-list').addEventListener('click', () => {
+  hostsMode = 'list';
+  selectHostsMode('list');
+  $('hosts-input-row').hidden = false;
+  $('hosts-input').focus();
+});
+
+$<HTMLInputElement>('hosts-input').addEventListener('change', (event) => {
+  updateFilters({ hosts: parseHosts((event.target as HTMLInputElement).value) });
+});
+
+const TOGGLES: [string, keyof CaptureFilters][] = [
+  ['filter-static', 'static'],
+  ['filter-analytics', 'analytics'],
+  ['filter-json', 'json'],
+];
+
+for (const [id, key] of TOGGLES) {
+  $<HTMLInputElement>(id).addEventListener('change', (event) => {
+    updateFilters({ [key]: (event.target as HTMLInputElement).checked });
   });
 }
 
@@ -493,6 +432,10 @@ localizePage();
 
 $('settings-version').textContent = t('version', [ext.runtime.getManifest().version]);
 
-refresh().finally(startPolling);
+refresh().finally(() => {
+  void document.body.offsetWidth;
+  document.body.classList.add('ready');
+  startPolling();
+});
 
 window.addEventListener('unload', stopPolling);

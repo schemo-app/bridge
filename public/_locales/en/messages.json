@@ -92,7 +92,7 @@
     "description": "Popup header status"
   },
   "warnAppDown": {
-    "message": "The Schemo app is not running. Capture resumes as soon as it starts.",
+    "message": "The app is not running. Capture continues once the app starts.",
     "description": "Warning while the app is not running"
   },
   "launchApp": {
@@ -159,16 +159,12 @@
     "message": "Capture filters",
     "description": "Setting"
   },
-  "settingFiltersHint": {
-    "message": "Set in the app",
-    "description": "Setting hint"
-  },
   "filterHosts": {
     "message": "Hosts",
     "description": "Filter name"
   },
   "filterHostsAll": {
-    "message": "all",
+    "message": "All",
     "description": "Filter value"
   },
   "filterStatic": {
@@ -210,5 +206,25 @@
   "statusNotInstalled": {
     "message": "App not installed",
     "description": "Popup header status"
+  },
+  "filterHostsList": {
+    "message": "List",
+    "description": "Hosts filter segment"
+  },
+  "filterHostsPlaceholder": {
+    "message": "api.example.com, *.example.com",
+    "description": "Hosts list placeholder"
+  },
+  "filtersApplyNow": {
+    "message": "Applied at once",
+    "description": "Filters section hint"
+  },
+  "filtersOffline": {
+    "message": "Can be changed while the app is running",
+    "description": "Filters section hint when the app is not running"
+  },
+  "errFiltersOffline": {
+    "message": "The app is not running — filters were not changed",
+    "description": "Error"
   }
 }

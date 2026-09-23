@@ -2,6 +2,7 @@ import { ext } from '../shared/api';
 import {
   DEFAULT_SETTINGS,
   type ActionResult,
+  type CaptureFilters,
   type CurrentTab,
   type PopupRequest,
   type PopupState,
@@ -13,6 +14,7 @@ import { clearPendingCapture, setPendingCapture } from './access';
 import { BROWSER_NAME } from './browser';
 import { activeTab, startCapture, stopCapture, stopCaptureFor } from './capture';
 import { getLinkState, probe, send } from './connection';
+import { applyFilters } from './filters';
 import { state } from './state';
 
 function describeTab(tab: chrome.tabs.Tab | undefined): CurrentTab | null {
@@ -68,6 +70,16 @@ async function getState(): Promise<PopupState> {
   };
 }
 
+// Filters belong to the app: an edit goes there and comes back to every browser.
+async function setFilters(filters: CaptureFilters): Promise<ActionResult> {
+  if (!send({ type: 'filters', filters })) {
+    return { ok: false, error: t('errFiltersOffline') };
+  }
+
+  await applyFilters(filters);
+  return { ok: true };
+}
+
 function focusApp(tabId: number | null | undefined): ActionResult {
   return { ok: send({ type: 'focus', tab: tabId ?? 0 }) };
 }
@@ -106,6 +118,9 @@ export async function respond(message: PopupRequest): Promise<unknown> {
     case 'pendingCapture':
       await setPendingCapture(message.tabId, message.pattern);
       return { ok: true };
+
+    case 'setFilters':
+      return setFilters(message.filters);
 
     case 'clearPending':
       await clearPendingCapture();
