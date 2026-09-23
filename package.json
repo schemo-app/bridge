@@ -1,6 +1,6 @@
 {
   "name": "schemo-extension",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Schemo Bridge — browser extension that hands the requests of chosen tabs to the desktop app.",
   "license": "MIT",
