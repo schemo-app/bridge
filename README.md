@@ -34,9 +34,7 @@ pnpm clean            # remove dist, artifacts and the Parcel cache
 1. Open `about:debugging#/runtime/this-firefox`.
 2. **Load Temporary Add-on…** → choose `dist/firefox/manifest.json`.
 
-Install the application and run it once: extension connects by itself.
-
-Then open the tab you want to watch and switch capture on in the popup; the browser asks for access to that site the first time.
+Install the application and run it once: then open the tab you want to watch and switch capture on in the popup; the browser asks for access to that site the first time. The extension connects to the app for the session on its own. Turn on **Connect automatically** in the app (Settings → Browser extension) for it to come up together with the browser and re-arm the remembered tabs.
 
 ## Languages
 

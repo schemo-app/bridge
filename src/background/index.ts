@@ -17,7 +17,7 @@ import { respond } from './commands';
 import { connect, disconnect, isConnected, sendState, setFrameHandler } from './connection';
 import { applyFilters } from './filters';
 import { refreshIndicator, setCaptureIcon, setCaptureTitle, titleDisconnected } from './indicator';
-import { forgetTab, isActive, loadStoredSettings, persistCapture, readState, state } from './state';
+import { forgetTab, isActive, loadStoredSettings, mayConnect, persistCapture, readState, saveSettings, state } from './state';
 
 loadStoredSettings();
 listenForGrants();
@@ -37,6 +37,16 @@ setFrameHandler((frame: AppFrame) => {
         applyFilters(frame.filters);
       }
       break;
+
+    case 'settings': {
+      // The two switches of the app's extension section. What is not in the frame stays as it is,
+      // and the popup reads both from storage the next time it opens.
+      saveSettings({
+        autoConnect: frame.autoConnect ?? state.settings.autoConnect,
+        rememberTabs: frame.rememberTabs ?? state.settings.rememberTabs,
+      }).catch((err: unknown) => console.warn('[schemo] settings', err));
+      break;
+    }
   }
 });
 
@@ -65,7 +75,9 @@ ext.runtime.onMessage.addListener((message: RuntimeMessage | undefined, sender, 
 });
 
 ext.alarms.onAlarm.addListener((alarm) => {
-  if (isKeepalive(alarm) && isActive() && !isConnected()) {
+  // An alarm that reopens the link is the link opening itself, so the switch has a say — a session a
+  // person started counts as their asking and is kept up (see mayConnect).
+  if (isKeepalive(alarm) && isActive() && !isConnected() && mayConnect()) {
     connect();
   }
 });
@@ -136,6 +148,13 @@ function restoreCaptured(tabIds: number[]): void {
   captureTabIds?: number[];
   pausedOrigins?: string[];
 }>).then(({ pausedOrigins, captureTabIds }) => {
+  if (pausedOrigins?.length || captureTabIds?.length) {
+    // A session that was running in this browser run: a person started it, so the link may be kept
+    // up for it — the switch is about a link nobody asked for. A browser that has just started has
+    // nothing here, and that is what keeps the switch's say at a cold start.
+    state.wanted = true;
+  }
+
   if (pausedOrigins?.length) {
     state.paused = true;
     state.pausedOrigins = pausedOrigins;

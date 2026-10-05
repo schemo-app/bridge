@@ -2,10 +2,12 @@ export const MESSAGE_MARKER = '__SCHEMO_CAPTURE__';
 
 export interface Settings {
   rememberTabs: boolean;
+  autoConnect: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   rememberTabs: true,
+  autoConnect: false,
 };
 
 export interface CaptureFilters {
@@ -100,7 +102,8 @@ export interface PopupState {
 export type AppFrame =
   | { type: 'pause' }
   | { type: 'resume' }
-  | { type: 'filters'; filters: Partial<CaptureFilters> };
+  | { type: 'filters'; filters: Partial<CaptureFilters> }
+  | { type: 'settings'; autoConnect?: boolean; rememberTabs?: boolean };
 
 export interface RequestFrame extends InterceptedRequest {
   type: 'request';
@@ -117,6 +120,7 @@ export interface StateFrame {
   paused: boolean;
   tabs: number;
   browser: string;
+  version: string;
   tabList: { tabId: number; since: number }[];
 }
 

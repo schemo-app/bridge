@@ -3,7 +3,7 @@ import { ext } from '../shared/api';
 import type { AppFrame, ExtensionFrame, LinkState } from '../shared/types';
 import { BROWSER_NAME } from './browser';
 import { refreshIndicator } from './indicator';
-import { isActive, state } from './state';
+import { isActive, mayConnect, state } from './state';
 
 const HOST = 'app.schemo.bridge';
 const RETRY_MS = 5000;
@@ -102,7 +102,9 @@ function gone(p: chrome.runtime.Port): void {
   connected = false;
   refreshIndicator(connected);
 
-  if (isActive()) {
+  // The retry is the link opening itself, so it is the switch's to allow — a session a person
+  // started counts as their asking, and that one is kept up.
+  if (isActive() && mayConnect()) {
     clearTimeout(retryTimer);
     retryTimer = setTimeout(connect, RETRY_MS);
   }
@@ -155,6 +157,8 @@ export function sendState(): void {
     paused: state.paused,
     tabs: state.captureTabIds.size,
     browser: BROWSER_NAME,
+    // The extension's own version, which is what the app names it by beside the browser's name.
+    version: ext.runtime.getManifest().version,
     tabList: [...state.captureTabIds]
         .filter((id) => state.captureTabSince.has(id))
         .map((id) => ({ tabId: id, since: state.captureTabSince.get(id)! })),

@@ -12,7 +12,7 @@ import {
   setCaptureTitle,
   titleDisconnected,
 } from './indicator';
-import { forgetTab, persistCapture, state } from './state';
+import { forgetTab, mayConnect, persistCapture, state } from './state';
 
 const KEEPALIVE = 'schemo-keepalive';
 // Chrome's minimum alarm period.
@@ -172,6 +172,10 @@ export async function startCaptureOn(
     return { ok: false, error: t('errNoActiveTab') };
   }
 
+  // A person asked for this tab, so the link may be opened and kept up for the session whatever the
+  // switch says.
+  state.wanted = true;
+
   if (!state.captureTabIds.has(tab.id)) {
     try {
       await injectInto(tab.id);
@@ -288,7 +292,12 @@ export async function captureByOrigins(origins: string[]): Promise<number> {
   startKeepalive();
   refreshIndicator(isConnected());
 
-  connect();
+  // The tabs are armed either way — that is what "remember tabs" asks for — and the link is opened
+  // only if the switch allows the extension to open one by itself.
+  if (mayConnect()) {
+    connect();
+  }
+
   sendState();
 
   return state.captureTabIds.size;

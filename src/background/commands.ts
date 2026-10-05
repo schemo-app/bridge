@@ -15,7 +15,7 @@ import { BROWSER_NAME } from './browser';
 import { activeTab, startCapture, stopCapture, stopCaptureFor } from './capture';
 import { getLinkState, probe, send } from './connection';
 import { applyFilters } from './filters';
-import { state } from './state';
+import { saveSettings, state } from './state';
 
 function describeTab(tab: chrome.tabs.Tab | undefined): CurrentTab | null {
   if (tab?.id == null) {
@@ -86,13 +86,7 @@ function focusApp(tabId: number | null | undefined): ActionResult {
 
 async function setSetting(key: string, value: boolean): Promise<ActionResult & { settings: Settings }> {
   if (key in DEFAULT_SETTINGS) {
-    state.settings = { ...state.settings, [key]: Boolean(value) };
-
-    await ext.storage.local.set({ settings: state.settings });
-
-    if (key === 'rememberTabs' && !state.settings.rememberTabs) {
-      await ext.storage.local.set({ captureOrigins: [] });
-    }
+    await saveSettings({ [key]: Boolean(value) });
   }
 
   return { ok: true, settings: { ...state.settings } };

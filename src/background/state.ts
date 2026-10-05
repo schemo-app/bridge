@@ -21,10 +21,32 @@ export const state = {
   settings: { ...DEFAULT_SETTINGS } as Settings,
   pausedOrigins: [] as string[],
   paused: false,
+  // Whether a person asked for the link in this browser run: capture started from the popup opens
+  // it, and a link opened that way is kept up — the "connect automatically" switch is about the
+  // link nobody asked for, not about dropping one that was.
+  wanted: false,
 };
 
 export function isActive(): boolean {
   return state.captureTabIds.size > 0 || state.paused;
+}
+
+// Whether the extension may open the link without anybody asking: the switch says it may when both
+// sides are running, and a capture a person started says it may because they did ask.
+export function mayConnect(): boolean {
+  return state.settings.autoConnect || state.wanted;
+}
+
+// Writes the switches down and tells the popup about them: they are read from storage when it
+// opens, and a copy that only lived in memory would be a switch that flips back.
+export async function saveSettings(patch: Partial<Settings>): Promise<void> {
+  state.settings = { ...state.settings, ...patch };
+
+  await ext.storage.local.set({ settings: state.settings });
+
+  if (!state.settings.rememberTabs) {
+    await ext.storage.local.set({ captureOrigins: [] });
+  }
 }
 
 export function forgetTab(tabId: number): void {
