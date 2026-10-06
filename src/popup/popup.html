@@ -8,10 +8,23 @@
   <div class="view view-main">
     <header class="head">
       <svg class="logo" viewBox="0 0 1024 1024" aria-hidden="true">
-        <rect x="48" y="48" width="928" height="928" rx="210" fill="#20B889"/>
-        <path d="M385 285h-55c-42 0-62 21-62 63v105c0 38-16 57-50 57 34 0 50 19 50 57v105c0 42 20 63 62 63h55" fill="none" stroke="#fff" stroke-width="48" stroke-linecap="round"/>
-        <path d="M639 285h55c42 0 62 21 62 63v105c0 38 16 57 50 57-34 0-50 19-50 57v105c0 42-20 63-62 63h-55" fill="none" stroke="#fff" stroke-width="48" stroke-linecap="round"/>
-        <path d="M465 512h94" stroke="#fff" stroke-width="44" stroke-linecap="round"/>
+        <defs>
+          <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#6a6cff"/>
+            <stop offset="1" stop-color="#3a2bd1"/>
+          </linearGradient>
+          <clipPath id="lc"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+          <filter id="ls" x="-10%" y="-10%" width="120%" height="125%">
+            <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.28"/>
+          </filter>
+        </defs>
+        <g filter="url(#ls)">
+          <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#lg)"/>
+          <g clip-path="url(#lc)">
+            <path d="M512 -78A300 300 0 0 0 512 522Z" fill="#ffffff"/>
+            <path d="M512 522A300 300 0 0 1 512 1122Z" fill="#ffb08a"/>
+          </g>
+        </g>
       </svg>
       <div class="head-text">
         <span class="head-title">Schemo</span>
