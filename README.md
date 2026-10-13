@@ -1,4 +1,4 @@
-# Schemo Bridge
+# Schemo Extension
 
 The browser extension for [Schemo](https://github.com/schemo-app/schemo).
 
@@ -41,8 +41,3 @@ Install the application and run it once: then open the tab you want to watch and
 English and Russian; the extension follows the browser's language and falls back to English.
 
 To add a language, copy `public/_locales/en` to `public/_locales/<lang>` and translate the `message` values.
-
-## Releasing
-
-Bump `version` in `package.json`, push a tag `v<version>`.
-The release workflow builds and attaches the three zips and the source archive to a GitHub release.
