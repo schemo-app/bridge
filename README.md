@@ -8,7 +8,7 @@ Works in **Chrome**, **Edge** and **Firefox 142+**.
 
 ## Requirements
 
-- Node.js 22 (`.nvmrc`)
+- Node.js 24 (`.nvmrc`)
 - pnpm 10 (`corepack enable` gives you the version pinned in `package.json`)
 
 ## Building
