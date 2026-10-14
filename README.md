@@ -36,6 +36,10 @@ pnpm clean            # remove dist, artifacts and the Parcel cache
 
 Install the application and run it once: then open the tab you want to watch and switch capture on in the popup; the browser asks for access to that site the first time. The extension connects to the app for the session on its own. Turn on **Connect automatically** in the app (Settings → Browser extension) for it to come up together with the browser and re-arm the remembered tabs.
 
+## Releases
+
+Push a tag such as `v1.0.1`. CI sets `package.json` from the tag before building, so browser manifests and archive names use that version. No manual version bump is required. Release tags use `vMAJOR.MINOR.PATCH` without prerelease suffixes.
+
 ## Languages
 
 English and Russian; the extension follows the browser's language and falls back to English.

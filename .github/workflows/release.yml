@@ -28,20 +28,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify version
+      - name: Set release version
         run: |
-          version="$(node -p 'require("./package.json").version')"
-
-          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo 'Extension release tags must use vMAJOR.MINOR.PATCH.' >&2
             exit 1
           fi
+          npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --ignore-scripts --allow-same-version
 
       - name: Check
         run: pnpm check
 
       - name: Build release artifacts
-        run: pnpm zip
+        run: pnpm zip:chrome && pnpm zip:firefox && pnpm zip:edge && pnpm zip:source
 
       - name: Create or update release
         env:
