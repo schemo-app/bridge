@@ -1,4 +1,4 @@
-# Schemo Extension
+# Schemo Bridge
 
 The browser extension for [Schemo](https://github.com/schemo-app/schemo).
 
