@@ -8,7 +8,7 @@
     "description": "Extension name"
   },
   "extDescription": {
-    "message": "An extension for the Schemo desktop application. It intercepts network requests from selected tabs for viewing and analysis within the program.",
+    "message": "Capture requests from selected browser tabs and inspect, edit, and replay them in the Schemo desktop app.",
     "description": "Extension description in the store and the extensions page"
   },
   "requests_one": {

@@ -25,12 +25,19 @@ module.exports = new Reporter({
     const { version } = await readJson("./package.json")
     const common = await readJson("./manifest/common.json")
     const specific = await readJson(`./manifest/${FAMILY[target]}.json`)
+    const manifest = { ...common, ...specific, version }
+    for (const locale of await fs.readdir("./public/_locales")) {
+      const messages = await readJson(`./public/_locales/${locale}/messages.json`)
+      if (messages.extDescription.message.length > 132) {
+        throw new Error(`Extension description for ${locale} exceeds 132 characters`)
+      }
+    }
     const dist = path.join("dist", target)
 
     await fs.mkdir(dist, { recursive: true })
     await fs.writeFile(
       path.join(dist, "manifest.json"),
-      JSON.stringify({ ...common, ...specific, version }, null, 2) + "\n"
+      JSON.stringify(manifest, null, 2) + "\n"
     )
   },
 })
