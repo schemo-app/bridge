@@ -35,8 +35,9 @@
     "zip:edge": "web-ext build -s dist/edge -a artifacts -n schemo-bridge-edge-{version}.zip -o",
     "zip:source": "rm -f artifacts/schemo-bridge-source-$npm_package_version.zip && mkdir -p artifacts && git ls-files | zip -q -@ artifacts/schemo-bridge-source-$npm_package_version.zip",
     "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
     "lint:firefox": "web-ext lint -s dist/firefox",
-    "check": "pnpm typecheck && pnpm build && pnpm lint:firefox"
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm lint:firefox"
   },
   "devDependencies": {
     "@parcel/config-default": "^2.16.4",

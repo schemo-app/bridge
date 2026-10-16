@@ -22,21 +22,23 @@ function describeTab(tab: chrome.tabs.Tab | undefined): CurrentTab | null {
     return null;
   }
 
+  const captured = state.tabs.get(tab.id);
   return {
     tabId: tab.id,
     title: tab.title || '',
     url: tab.url || '',
     favIconUrl: tab.favIconUrl || '',
-    count: state.capturedCounts.get(tab.id) || 0,
-    lastAt: state.capturedLastAt.get(tab.id) || 0,
-    capturing: state.captureTabIds.has(tab.id),
+    count: captured?.count ?? 0,
+    lastAt: captured?.lastAt ?? 0,
+    capturing: !!captured && !captured.paused,
+    paused: captured?.paused ?? false,
   };
 }
 
 async function getCapturedTabs(): Promise<TabInfo[]> {
   const tabs: TabInfo[] = [];
 
-  for (const tabId of state.captureTabIds) {
+  for (const [tabId, captured] of state.tabs) {
     try {
       const tab = await ext.tabs.get(tabId);
 
@@ -45,7 +47,8 @@ async function getCapturedTabs(): Promise<TabInfo[]> {
         title: tab.title || '',
         url: tab.url || '',
         favIconUrl: tab.favIconUrl || '',
-        count: state.capturedCounts.get(tabId) || 0,
+        count: captured.count,
+        paused: captured.paused,
       });
     } catch {}
   }
@@ -56,14 +59,15 @@ async function getCapturedTabs(): Promise<TabInfo[]> {
 async function getState(): Promise<PopupState> {
   const appRunning = await probe();
   const tab = await activeTab();
+  const currentTab = describeTab(tab);
 
   return {
     link: getLinkState(),
-    capturing: tab?.id != null && state.captureTabIds.has(tab.id),
+    capturing: currentTab?.capturing ?? false,
     activeTabId: tab?.id ?? null,
     appRunning,
     capturedTabs: await getCapturedTabs(),
-    currentTab: describeTab(tab),
+    currentTab,
     settings: { ...state.settings },
     filters: { ...state.filters },
     browser: BROWSER_NAME,
@@ -121,10 +125,7 @@ export async function respond(message: PopupRequest): Promise<unknown> {
       return { ok: true };
 
     case 'stopCaptureTab':
-      if (message.tabId != null && state.captureTabIds.has(message.tabId)) {
-        await stopCaptureFor(message.tabId);
-      }
-
+      await stopCaptureFor(message.tabId);
       return { ok: true };
 
     default:

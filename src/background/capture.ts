@@ -10,9 +10,8 @@ import {
   refreshIndicator,
   setCaptureIcon,
   setCaptureTitle,
-  titleDisconnected,
 } from './indicator';
-import { forgetTab, mayConnect, persistCapture, state } from './state';
+import { mayConnect, persistCapture, rememberTab, state } from './state';
 
 const KEEPALIVE = 'schemo-keepalive';
 // Chrome's minimum alarm period.
@@ -133,29 +132,6 @@ async function disableInTab(tabId: number): Promise<void> {
   }
 }
 
-function addCaptureTab(tab: chrome.tabs.Tab, resetCount = true): void {
-  if (tab?.id == null) {
-    return;
-  }
-
-  const fresh = !state.captureTabIds.has(tab.id);
-
-  state.captureTabIds.add(tab.id);
-
-  if (fresh) {
-    state.captureTabSince.set(tab.id, Date.now());
-  }
-
-  state.captureTabMeta.set(tab.id, {
-    title: tab.title || '',
-    url: tab.url || '',
-  });
-
-  if (resetCount) {
-    state.capturedCounts.set(tab.id, 0);
-  }
-}
-
 export async function activeTab(): Promise<chrome.tabs.Tab | undefined> {
   const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
   return tab;
@@ -172,19 +148,24 @@ export async function startCaptureOn(
     return { ok: false, error: t('errNoActiveTab') };
   }
 
-  // A person asked for this tab, so the link may be opened and kept up for the session whatever the
-  // switch says.
+  // Explicit capture may connect regardless of autoConnect.
   state.wanted = true;
 
-  if (!state.captureTabIds.has(tab.id)) {
+  if (state.tabs.get(tab.id)?.paused) {
+    await resumeCapture(tab.id);
+    if (state.tabs.get(tab.id)?.paused) {
+      return { ok: false, error: t('errPageUnreachable') };
+    }
+  }
+
+  if (!state.tabs.has(tab.id)) {
     try {
       await injectInto(tab.id);
     } catch (err) {
       return { ok: false, error: injectionFailure(tab, err) };
     }
 
-    state.paused = false;
-    addCaptureTab(tab);
+    rememberTab(tab);
 
     if (state.settings.rememberTabs) {
       await rememberOrigin(originOf(tab.url));
@@ -195,51 +176,38 @@ export async function startCaptureOn(
 
   startKeepalive();
 
-  setCaptureIcon(tab.id, 'disconnected');
-  setCaptureTitle(tab.id, titleDisconnected());
-
   if (!isConnected()) {
     connect();
-  } else {
-    refreshIndicator(isConnected());
-    sendState();
   }
+  refreshIndicator(isConnected());
+  sendState();
 
   return { ok: true, tabId: tab.id };
 }
 
-export async function stopCaptureFor(tabId: number, keepConnection = false): Promise<void> {
+export async function stopCaptureFor(tabId: number): Promise<void> {
+  const tab = state.tabs.get(tabId);
+  if (!tab) return;
+  state.tabs.delete(tabId);
+
   await disableInTab(tabId);
 
   setCaptureIcon(tabId, 'normal');
   setCaptureTitle(tabId, 'Schemo');
 
-  const meta = state.captureTabMeta.get(tabId);
+  if (tab.url) {
+    const origin = originOf(tab.url);
 
-  forgetTab(tabId);
+    const stillUsed = [...state.tabs.values()].some(tab => originOf(tab.url) === origin);
 
-  if (!keepConnection && meta?.url) {
-    const origin = originOf(meta.url);
-
-    const stillUsed = await Promise.all(
-        [...state.captureTabIds].map(async (id) => {
-          try {
-            const tab = await ext.tabs.get(id);
-            return originOf(tab.url) === origin;
-          } catch {
-            return false;
-          }
-        })
-    );
-
-    if (!stillUsed.some(Boolean)) {
+    if (!stillUsed) {
       await forgetOrigin(origin);
     }
   }
 
   await persistCapture();
 
-  if (state.captureTabIds.size === 0 && !keepConnection) {
+  if (state.tabs.size === 0) {
     stopKeepalive();
     disconnect();
   }
@@ -268,7 +236,7 @@ export async function captureByOrigins(origins: string[]): Promise<number> {
     if (
         tab.id == null ||
         !tab.url ||
-        state.captureTabIds.has(tab.id) ||
+        state.tabs.has(tab.id) ||
         !origins.includes(originOf(tab.url))
     ) {
       continue;
@@ -280,10 +248,10 @@ export async function captureByOrigins(origins: string[]): Promise<number> {
       continue;
     }
 
-    addCaptureTab(tab);
+    rememberTab(tab);
   }
 
-  if (state.captureTabIds.size === 0) {
+  if (state.tabs.size === 0) {
     return 0;
   }
 
@@ -292,68 +260,51 @@ export async function captureByOrigins(origins: string[]): Promise<number> {
   startKeepalive();
   refreshIndicator(isConnected());
 
-  // The tabs are armed either way — that is what "remember tabs" asks for — and the link is opened
-  // only if the switch allows the extension to open one by itself.
+  // Remembered tabs are armed even when automatic connection is disabled.
   if (mayConnect()) {
     connect();
   }
 
   sendState();
 
-  return state.captureTabIds.size;
+  return state.tabs.size;
 }
 
-export async function pauseAll(): Promise<void> {
-  const origins = [
-    ...new Set(
-        [...state.captureTabIds]
-            .map((tabId) => originOf(state.captureTabMeta.get(tabId)?.url))
-            .filter(Boolean)
-    ),
-  ];
-
-  state.pausedOrigins = origins;
-  state.paused = true;
-
-  await ext.storage.session.set({ pausedOrigins: origins });
-
-  for (const tabId of [...state.captureTabIds]) {
-    await stopCaptureFor(tabId, true);
+export async function pauseCapture(tabId?: number): Promise<void> {
+  const targets = tabId === undefined ? [...state.tabs.keys()] : [tabId];
+  for (const id of targets) {
+    const tab = state.tabs.get(id);
+    if (!tab || tab.paused) continue;
+    tab.paused = true;
+    await disableInTab(id);
   }
-
-  startKeepalive();
-  connect();
+  await persistCapture();
+  refreshIndicator(isConnected());
   sendState();
 }
 
-export async function resumeAll(): Promise<void> {
-  const [session, remembered] = await Promise.all([
-    ext.storage.session.get('pausedOrigins') as Promise<{ pausedOrigins?: string[] }>,
-    rememberedOrigins(),
-  ]);
-
-  const origins = state.pausedOrigins.length
-      ? state.pausedOrigins
-      : session.pausedOrigins?.length
-          ? session.pausedOrigins
-          : remembered;
-
-  state.pausedOrigins = [];
-  state.paused = false;
-
-  await ext.storage.session.set({ pausedOrigins: [] });
-
-  await captureByOrigins(origins);
-}
-
-function makeId(): string {
-  return `${Date.now().toString(36)}-` + Math.random().toString(36).slice(2, 8);
+export async function resumeCapture(tabId?: number): Promise<void> {
+  const targets = tabId === undefined ? [...state.tabs.keys()] : [tabId];
+  for (const id of targets) {
+    const tab = state.tabs.get(id);
+    if (!tab?.paused) continue;
+    try {
+      await injectInto(id);
+      tab.paused = false;
+    } catch (err) {
+      console.warn('[schemo] could not resume capture in tab', id, err);
+    }
+  }
+  await persistCapture();
+  refreshIndicator(isConnected());
+  sendState();
 }
 
 export function handleCapturedRequest(message: CapturedMessage, sender: chrome.runtime.MessageSender): void {
   const tabId = sender.tab?.id;
+  const tab = tabId === undefined ? undefined : state.tabs.get(tabId);
 
-  if (tabId == null || !state.captureTabIds.has(tabId)) {
+  if (tabId === undefined || !tab || tab.paused) {
     return;
   }
 
@@ -363,7 +314,7 @@ export function handleCapturedRequest(message: CapturedMessage, sender: chrome.r
 
   const sent = send({
     type: 'request',
-    id: makeId(),
+    id: crypto.randomUUID(),
     method: message.method,
     url: message.url,
     requestHeaders: message.requestHeaders || {},
@@ -388,7 +339,7 @@ export function handleCapturedRequest(message: CapturedMessage, sender: chrome.r
     return;
   }
 
-  state.capturedCounts.set(tabId, (state.capturedCounts.get(tabId) || 0) + 1);
-  state.capturedLastAt.set(tabId, Date.now());
+  tab.count++;
+  tab.lastAt = Date.now();
   setCaptureTitle(tabId, captureTitleText(tabId));
 }

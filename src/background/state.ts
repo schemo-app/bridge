@@ -6,39 +6,37 @@ import {
   type Settings,
 } from '../shared/types';
 
-export interface TabMeta {
+export interface CapturedTab {
   title: string;
   url: string;
+  since: number;
+  paused: boolean;
+  count: number;
+  lastAt: number;
+}
+
+export interface StoredTab {
+  tabId: number;
+  since: number;
+  paused: boolean;
 }
 
 export const state = {
-  captureTabIds: new Set<number>(),
-  captureTabMeta: new Map<number, TabMeta>(),
-  captureTabSince: new Map<number, number>(),
-  capturedCounts: new Map<number, number>(),
-  capturedLastAt: new Map<number, number>(),
+  tabs: new Map<number, CapturedTab>(),
   filters: { ...DEFAULT_FILTERS } as CaptureFilters,
   settings: { ...DEFAULT_SETTINGS } as Settings,
-  pausedOrigins: [] as string[],
-  paused: false,
-  // Whether a person asked for the link in this browser run: capture started from the popup opens
-  // it, and a link opened that way is kept up — the "connect automatically" switch is about the
-  // link nobody asked for, not about dropping one that was.
+  // An explicit capture keeps reconnecting even when autoConnect is disabled.
   wanted: false,
 };
 
 export function isActive(): boolean {
-  return state.captureTabIds.size > 0 || state.paused;
+  return state.tabs.size > 0;
 }
 
-// Whether the extension may open the link without anybody asking: the switch says it may when both
-// sides are running, and a capture a person started says it may because they did ask.
 export function mayConnect(): boolean {
   return state.settings.autoConnect || state.wanted;
 }
 
-// Writes the switches down and tells the popup about them: they are read from storage when it
-// opens, and a copy that only lived in memory would be a switch that flips back.
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   state.settings = { ...state.settings, ...patch };
 
@@ -49,17 +47,23 @@ export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   }
 }
 
-export function forgetTab(tabId: number): void {
-  state.captureTabIds.delete(tabId);
-  state.captureTabMeta.delete(tabId);
-  state.captureTabSince.delete(tabId);
-  state.capturedCounts.delete(tabId);
-  state.capturedLastAt.delete(tabId);
+export function rememberTab(tab: chrome.tabs.Tab, saved?: StoredTab): void {
+  if (tab.id === undefined) return;
+
+  state.tabs.set(tab.id, {
+    since: saved?.since ?? Date.now(),
+    paused: saved?.paused ?? false,
+    count: 0,
+    lastAt: 0,
+    ...state.tabs.get(tab.id),
+    title: tab.title || '',
+    url: tab.url || '',
+  });
 }
 
-export async function readState(): Promise<{ captureTabIds: number[] }> {
+export async function readState(): Promise<StoredTab[]> {
   const [session, local] = await Promise.all([
-    ext.storage.session.get(['captureTabIds', 'captureTabSince']),
+    ext.storage.session.get({ captureTabs: [] }),
     ext.storage.local.get({
       settings: DEFAULT_SETTINGS,
       filters: DEFAULT_FILTERS,
@@ -76,26 +80,16 @@ export async function readState(): Promise<{ captureTabIds: number[] }> {
     ...((local.filters as Partial<CaptureFilters>) || {}),
   };
 
-  state.captureTabSince = new Map((session.captureTabSince as [number, number][]) ?? []);
-
-  return {
-    captureTabIds: (session.captureTabIds as number[]) ?? [],
-  };
+  return session.captureTabs as StoredTab[];
 }
 
 export async function persistCapture(): Promise<void> {
   await ext.storage.session.set({
-    captureTabIds: [...state.captureTabIds],
-    captureTabSince: [...state.captureTabSince],
+    captureTabs: [...state.tabs].map(([tabId, tab]) => ({ tabId, since: tab.since, paused: tab.paused })),
   });
 }
 
-export function loadStoredSettings(): void {
-  ext.storage.local.get(['settings', 'filters']).then(({ settings, filters }) => {
-    state.settings = { ...DEFAULT_SETTINGS, ...((settings as Partial<Settings>) || {}) };
-    state.filters = { ...DEFAULT_FILTERS, ...((filters as Partial<CaptureFilters>) || {}) };
-  });
-
+export function listenForSettings(): void {
   ext.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes.settings) {
       return;

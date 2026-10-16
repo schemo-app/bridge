@@ -136,7 +136,7 @@ function buildMoreRow(tab: TabInfo): HTMLElement {
 
   const hostEl = document.createElement('span');
   hostEl.className = 'tab-host mono';
-  hostEl.textContent = host;
+  hostEl.textContent = tab.paused ? `${host} · ${t('statusPaused')}` : host;
 
   text.append(title, hostEl);
 
@@ -185,12 +185,12 @@ function renderCurrentTab(state: PopupState): void {
   const label = tab ? tab.title || host || t('tabFallback') : t('noActiveTab');
 
   $('current-title').textContent = label;
-  $('current-host').textContent = host;
+  $('current-host').textContent = tab?.paused ? `${host} · ${t('statusPaused')}` : host;
   fillIcon($('current-icon'), tab?.favIconUrl || '', label);
 
   const foot = $('current-foot');
 
-  foot.hidden = !tab || !capturing || !state.appRunning;
+  foot.hidden = !tab || (!capturing && !tab.paused) || !state.appRunning;
   foot.classList.remove('link');
   foot.onclick = null;
 

@@ -7,6 +7,9 @@
     "message": "Schemo Bridge",
     "description": "Extension name"
   },
+  "statusPaused": {
+    "message": "Capture paused"
+  },
   "extDescription": {
     "message": "Capture requests from selected browser tabs and inspect, edit, and replay them in the Schemo desktop app.",
     "description": "Extension description in the store and the extensions page"

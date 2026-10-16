@@ -6,9 +6,9 @@ import {
   handleCapturedRequest,
   injectInto,
   isKeepalive,
-  pauseAll,
+  pauseCapture,
   rememberedOrigins,
-  resumeAll,
+  resumeCapture,
   startKeepalive,
   stopKeepalive,
 } from './capture';
@@ -16,20 +16,28 @@ import { listenForGrants } from './access';
 import { respond } from './commands';
 import { connect, disconnect, isConnected, sendState, setFrameHandler } from './connection';
 import { applyFilters } from './filters';
-import { refreshIndicator, setCaptureIcon, setCaptureTitle, titleDisconnected } from './indicator';
-import { forgetTab, isActive, loadStoredSettings, mayConnect, persistCapture, readState, saveSettings, state } from './state';
+import { refreshIndicator } from './indicator';
+import { BROWSER_NAME } from './browser';
+import { isActive, listenForSettings, mayConnect, persistCapture, readState, rememberTab, saveSettings, state, type StoredTab } from './state';
 
-loadStoredSettings();
-listenForGrants();
+const ready = readState().then(restoreCaptured).catch((err: unknown) => {
+  console.warn('[schemo] restoring capture', err);
+});
+listenForSettings();
+listenForGrants(ready);
 
 setFrameHandler((frame: AppFrame) => {
   switch (frame.type) {
     case 'pause':
-      pauseAll();
+      if (!frame.browser || frame.browser === BROWSER_NAME) {
+        pauseCapture(frame.tabId).catch((err: unknown) => console.warn('[schemo] pause capture', err));
+      }
       break;
 
     case 'resume':
-      resumeAll();
+      if (!frame.browser || frame.browser === BROWSER_NAME) {
+        resumeCapture(frame.tabId).catch((err: unknown) => console.warn('[schemo] resume capture', err));
+      }
       break;
 
     case 'filters':
@@ -39,8 +47,6 @@ setFrameHandler((frame: AppFrame) => {
       break;
 
     case 'settings': {
-      // The two switches of the app's extension section. What is not in the frame stays as it is,
-      // and the popup reads both from storage the next time it opens.
       saveSettings({
         autoConnect: frame.autoConnect ?? state.settings.autoConnect,
         rememberTabs: frame.rememberTabs ?? state.settings.rememberTabs,
@@ -55,12 +61,13 @@ ext.runtime.onMessage.addListener((message: RuntimeMessage | undefined, sender, 
     return false;
   }
 
-  if (message.type === 'captured') {
-    handleCapturedRequest(message, sender);
-    return false;
-  }
-
-  respond(message)
+  ready.then(() => {
+    if (message.type === 'captured') {
+      handleCapturedRequest(message, sender);
+      return;
+    }
+    return respond(message);
+  })
       .then(sendResponse)
       .catch((err: unknown) => {
         console.warn('[schemo] message', message?.type, 'failed:', err);
@@ -74,35 +81,35 @@ ext.runtime.onMessage.addListener((message: RuntimeMessage | undefined, sender, 
   return true;
 });
 
-ext.alarms.onAlarm.addListener((alarm) => {
-  // An alarm that reopens the link is the link opening itself, so the switch has a say — a session a
-  // person started counts as their asking and is kept up (see mayConnect).
+ext.alarms.onAlarm.addListener(async (alarm) => {
+  await ready;
   if (isKeepalive(alarm) && isActive() && !isConnected() && mayConnect()) {
     connect();
   }
 });
 
 // A new document loses the hooks; re-inject into captured tabs.
-ext.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (!state.captureTabIds.has(tabId)) {
+ext.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  await ready;
+  const captured = state.tabs.get(tabId);
+  if (!captured) {
     return;
   }
 
   if (changeInfo.status === 'loading') {
     refreshIndicator(isConnected());
-    injectInto(tabId).catch(() => {});
+    if (!captured.paused) injectInto(tabId).catch(() => {});
   }
 
   if (changeInfo.url || changeInfo.title) {
-    state.captureTabMeta.set(tabId, {
-      title: tab.title || '',
-      url: tab.url || '',
-    });
+    captured.title = tab.title || '';
+    captured.url = tab.url || '';
+    sendState();
   }
 });
 
 ext.runtime.onStartup.addListener(async () => {
-  await readState();
+  await ready;
 
   if (!state.settings.rememberTabs) {
     return;
@@ -111,16 +118,15 @@ ext.runtime.onStartup.addListener(async () => {
   await captureByOrigins(await rememberedOrigins());
 });
 
-ext.tabs.onRemoved.addListener((tabId) => {
-  if (!state.captureTabIds.has(tabId)) {
+ext.tabs.onRemoved.addListener(async (tabId) => {
+  await ready;
+  if (!state.tabs.delete(tabId)) {
     return;
   }
 
-  forgetTab(tabId);
-
   persistCapture().catch(() => {});
 
-  if (state.captureTabIds.size === 0) {
+  if (state.tabs.size === 0) {
     stopKeepalive();
     disconnect();
   }
@@ -128,42 +134,25 @@ ext.tabs.onRemoved.addListener((tabId) => {
   sendState();
 });
 
-function restoreCaptured(tabIds: number[]): void {
-  if (!tabIds.length) {
+async function restoreCaptured(tabs: StoredTab[]): Promise<void> {
+  if (!tabs.length) {
     return;
   }
 
-  for (const tabId of tabIds) {
-    state.captureTabIds.add(tabId);
-    state.captureTabMeta.set(tabId, { title: '', url: '' });
-
-    setCaptureIcon(tabId, 'disconnected');
-    setCaptureTitle(tabId, titleDisconnected());
+  for (const saved of tabs) {
+    try {
+      rememberTab(await ext.tabs.get(saved.tabId), saved);
+    } catch {
+      // Closed tabs are not restored.
+      continue;
+    }
   }
 
-  connect();
-}
-
-(ext.storage.session.get(['captureTabIds', 'pausedOrigins']) as Promise<{
-  captureTabIds?: number[];
-  pausedOrigins?: string[];
-}>).then(({ pausedOrigins, captureTabIds }) => {
-  if (pausedOrigins?.length || captureTabIds?.length) {
-    // A session that was running in this browser run: a person started it, so the link may be kept
-    // up for it — the switch is about a link nobody asked for. A browser that has just started has
-    // nothing here, and that is what keeps the switch's say at a cold start.
+  await persistCapture();
+  if (state.tabs.size > 0) {
     state.wanted = true;
-  }
-
-  if (pausedOrigins?.length) {
-    state.paused = true;
-    state.pausedOrigins = pausedOrigins;
-
     startKeepalive();
+    refreshIndicator(false);
     connect();
-
-    return;
   }
-
-  restoreCaptured(captureTabIds || []);
-});
+}

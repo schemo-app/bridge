@@ -77,6 +77,7 @@ export interface TabInfo {
   url: string;
   favIconUrl: string;
   count: number;
+  paused: boolean;
 }
 
 export interface CurrentTab extends TabInfo {
@@ -100,8 +101,7 @@ export interface PopupState {
 }
 
 export type AppFrame =
-  | { type: 'pause' }
-  | { type: 'resume' }
+  | { type: 'pause' | 'resume'; tabId?: number; browser?: string }
   | { type: 'filters'; filters: Partial<CaptureFilters> }
   | { type: 'settings'; autoConnect?: boolean; rememberTabs?: boolean };
 
@@ -121,7 +121,7 @@ export interface StateFrame {
   tabs: number;
   browser: string;
   version: string;
-  tabList: { tabId: number; since: number }[];
+  tabList: { tabId: number; since: number; title: string; url: string; paused: boolean }[];
 }
 
 export type ExtensionFrame =

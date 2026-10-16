@@ -28,15 +28,20 @@ export function setCaptureTitle(tabId: number, title: string): void {
 }
 
 export function captureTitleText(tabId: number): string {
-  const meta = state.captureTabMeta.get(tabId);
+  const meta = state.tabs.get(tabId);
   const label = meta?.title ? t('titleTabQuoted', [meta.title]) : t('titleTabFallback');
-  const count = state.capturedCounts.get(tabId) || 0;
+  const count = meta?.count ?? 0;
 
   return t('titleCapturing', [label, tn('requests', count)]);
 }
 
 export function refreshIndicator(connected: boolean): void {
-  for (const tabId of state.captureTabIds) {
+  for (const [tabId, tab] of state.tabs) {
+    if (tab.paused) {
+      setCaptureIcon(tabId, 'normal');
+      setCaptureTitle(tabId, t('statusPaused'));
+      continue;
+    }
     setCaptureIcon(tabId, connected ? 'recording' : 'disconnected');
     setCaptureTitle(tabId, connected ? captureTitleText(tabId) : titleDisconnected());
   }

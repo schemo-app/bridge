@@ -36,8 +36,8 @@ async function takePending(): Promise<Pending | null> {
 
 // Revoking site access doesn't unload injected scripts, so capture is stopped explicitly.
 async function stopWhereAccessIsGone(): Promise<void> {
-  for (const tabId of [...state.captureTabIds]) {
-    let url = state.captureTabMeta.get(tabId)?.url;
+  for (const tabId of [...state.tabs.keys()]) {
+    let url = state.tabs.get(tabId)?.url;
 
     if (!url) {
       try {
@@ -57,12 +57,13 @@ async function stopWhereAccessIsGone(): Promise<void> {
   await forgetOriginsWithoutAccess();
 }
 
-export function listenForGrants(): void {
+export function listenForGrants(ready: Promise<void>): void {
   ext.permissions.onRemoved.addListener(() => {
-    stopWhereAccessIsGone().catch((err) => console.warn('[schemo] revoking capture failed:', err));
+    ready.then(stopWhereAccessIsGone).catch((err) => console.warn('[schemo] revoking capture failed:', err));
   });
 
   ext.permissions.onAdded.addListener(async () => {
+    await ready;
     const pending = await takePending();
 
     if (!pending || !(await ext.permissions.contains({ origins: [pending.pattern] }))) {

@@ -151,16 +151,22 @@ export function send(frame: ExtensionFrame): boolean {
 }
 
 export function sendState(): void {
+  const tabList = [...state.tabs].map(([tabId, tab]) => ({
+    tabId,
+    since: tab.since,
+    paused: tab.paused,
+    title: tab.title,
+    url: tab.url,
+  }));
+  const recording = tabList.some(tab => !tab.paused);
+
   send({
     type: 'state',
-    recording: connected && state.captureTabIds.size > 0,
-    paused: state.paused,
-    tabs: state.captureTabIds.size,
+    recording,
+    paused: tabList.length > 0 && !recording,
+    tabs: tabList.length,
     browser: BROWSER_NAME,
-    // The extension's own version, which is what the app names it by beside the browser's name.
     version: ext.runtime.getManifest().version,
-    tabList: [...state.captureTabIds]
-        .filter((id) => state.captureTabSince.has(id))
-        .map((id) => ({ tabId: id, since: state.captureTabSince.get(id)! })),
+    tabList,
   });
 }
