@@ -6,7 +6,15 @@ It captures the traffic of the tabs you choose and hands it to the desktop app o
 
 Works in **Chrome**, **Edge** and **Firefox 142+**.
 
-## Requirements
+## Install
+
+- [Chrome Web Store](https://chromewebstore.google.com/detail/dhhcdkfkobcmmhkcgmnjlanokplokkcp)
+- [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mikibdfoenbeoegoibkdmdeglbanlbbp)
+- [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/schemo-bridge/)
+
+Install [Schemo](https://github.com/schemo-app/schemo/releases) and run it once before enabling capture.
+
+## Development requirements
 
 - Node.js 24 (`.nvmrc`)
 - pnpm 10 (`corepack enable` gives you the version pinned in `package.json`)
